@@ -1,0 +1,9 @@
+*.pyc
+private.py
+*.ipynb*
+private/
+# Setuptools distribution folder.
+/dist/
+maps/
+# Python egg metadata, regenerated from source files by setuptools.
+/*.egg-info
