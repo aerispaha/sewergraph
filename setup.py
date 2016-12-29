@@ -11,7 +11,8 @@ AUTHOR_NAME = 'Adam Erispaha'
 AUTHOR_EMAIL = 'aerispaha@gmail.com'
 
 install_requires = [
-    'arcpy'
+    'arcpy',
+    'networkx',
     ]
 
 setup(name='swmmio',
