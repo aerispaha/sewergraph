@@ -11,15 +11,14 @@ AUTHOR_NAME = 'Adam Erispaha'
 AUTHOR_EMAIL = 'aerispaha@gmail.com'
 
 install_requires = [
-    'arcpy',
     'networkx',
     ]
 
-setup(name='swmmio',
+setup(name='sewertrace',
       version=VERSION,
       description='Tool for scripting geometric network trace functions',
       author=AUTHOR_NAME,
-      url='https://github.com/aerispaha/swmmio',
+      url='https://github.com/aerispaha/trace',
       author_email=AUTHOR_EMAIL,
       packages=find_packages(exclude=('tests')),
       install_requires=install_requires,
