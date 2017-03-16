@@ -58,8 +58,7 @@ def upstream_accumulate(G, node, parameter=None):
     # split_flow_nodes = [n for n in ]
 
     if parameter is None:
-        upstream_count = [1 for n in upstream_nodes
-                          if 'Depth' in G.node[n]]
+        upstream_count = [1 for n in upstream_nodes if 'Depth' in G.node[n]]
         return sum(upstream_count)
 
     upstream_vals = [G.node[n][parameter] for n in upstream_nodes
@@ -68,7 +67,56 @@ def upstream_accumulate(G, node, parameter=None):
     return sum(upstream_vals)
 
 
+def upstream_accumulate_all(G, parameter='Shape_Area'):
+    """
+    compute the accumulation (sum) of the given parameter of all upstream nodes
+    for each node in the network, G. (currently vars suggest upstream area)
 
+    Note: This is essentially brute forcing the network, and could be more
+    intelligently algorithmized e.g.: start at top or bottom and track which
+    tributaries have/haven't been traversed.
+    """
+
+    #keep track of where flow splits are observed
+    splitnodes = []
+    G1 = G.copy()
+
+    for n, d in G1.nodes_iter(data=True):
+        upstream_area = upstream_accumulate(G1, n, parameter)
+        G1.node[n]['upstream_area_ac'] = upstream_area/43560.0
+
+
+    for u,v,d in G1.edges_iter(data=True):
+
+        #get the downstream node's accumulated area
+        area = G1.node[u]['upstream_area_ac']
+
+        #set this as the edge's upstream area
+        G1.edge[u][v]['upstream_area_ac'] = area
+
+        #upstream tc
+        longest_path, longest_len = tc_path(G1, v)
+        G1.edge[u][v]['tc_length'] = longest_len
+
+    return G1
+
+def tc_path(G, start_node):
+
+    #subset graph to all upstream
+    up_nodes = nx.ancestors(G, start_node) | set({start_node})
+    G2 = nx.subgraph(G, up_nodes)
+
+    top_nodes = [n for n in G2.nodes_iter() if G2.in_degree(n) == 0]
+
+    longest_path, longest_len = [], 0
+    for n in top_nodes:
+        for path in nx.all_simple_paths(G2, source=n, target=start_node):
+            path_len = sum([G2[u][v]['length'] for u, v in pairwise(path)])
+            if path_len > longest_len:
+                longest_path = path
+                longest_len = path_len
+
+    return longest_path, longest_len
 
 def longest_path(shp=r'P:\06_Tools\sewertrace\data\oxford', firstn=None, draw=True):
     """
@@ -100,10 +148,12 @@ def longest_path(shp=r'P:\06_Tools\sewertrace\data\oxford', firstn=None, draw=Tr
     #find all terminal nodes (nodes at top of watershed)
     topnodes = [x for x in G1.nodes_iter() if G1.out_degree(x)==1
                 and G1.in_degree(x)==0]
+    botnodes = [x for x in G1.nodes_iter() if G1.out_degree(x)==0
+                and G1.in_degree(x)>0]
 
     #find the starting node if not passed in
     if firstn is None:
-        firstn = nx.topological_sort(G1)[-1]
+        firstn = nx.topological_sort(G1, reverse=True)[0]#[-1]
 
     #grab the FACILITYID of the start node (or a nearby node if first isn't a manhole with a FID)
     start_fid = data_from_adjacent_node(G1, firstn)
@@ -170,4 +220,4 @@ def longest_path(shp=r'P:\06_Tools\sewertrace\data\oxford', firstn=None, draw=Tr
 
 #     edge_labels=dict([((u,v,),round(d['weight'], 0)) for u,v,d in G1.edges_iter(data=True)])
 #     nx.draw_networkx_edge_labels(G1,pos, edge_labels)
-    return (G1, pos, longest_path_nodes)
+    return (G1, pos, longest_path_nodes, longest_path_edges)
