@@ -3,44 +3,7 @@ import networkx as nx
 import random
 import matplotlib.pyplot as plt
 from .helpers import data_from_adjacent_node, pairwise
-
-
-def flow_splits(G):
-
-    splitnodes = []
-    for n, d in G.nodes_iter(data=True):
-        if G.out_degree(n) > 1:
-            #node has more than one successor, may be a flow split
-            if 'Subtype' in G.node[n] and G.node[n]['Subtype'] != 6:
-
-                G.node[n]['flow_split_keys']={}
-                #subtype = 6 is a summit manhole
-                splitnodes.append(n)
-
-
-    return splitnodes
-
-def find_resolved_splits(G):
-    splitters = flow_splits(G)
-    results = {}
-    for s in splitters:
-
-        #look for descendants with more than one path between the splitter
-        s_degree =  G.out_degree(s) #out degree, i.e. how many paths its split into
-
-        resolve_paths = []
-        multi_in_ds = [d for d in nx.descendants(G, s) if G.in_degree(d) > 1]
-        SUB = nx.subgraph(G, nbunch=multi_in_ds)
-        for desc in nx.topological_sort(SUB, reverse=True):
-            paths = [p for p in nx.all_simple_paths(G, source=s, target=desc)]
-
-            if len(paths) > 1 and len(paths) == s_degree:
-                resolve_paths += paths
-                break
-
-        results.update({s:resolve_paths})
-
-    return results
+from hhcalculations import philly_storm_intensity
 
 def upstream_accumulate(G, node, parameter=None):
     """
@@ -81,26 +44,54 @@ def upstream_accumulate_all(G, parameter='Shape_Area'):
     splitnodes = []
     G1 = G.copy()
 
+    #ACCUMULATE UPSTREAM AREA AND TC AT EACH NODE
     for n, d in G1.nodes_iter(data=True):
-        upstream_area = upstream_accumulate(G1, n, parameter)
-        G1.node[n]['upstream_area_ac'] = upstream_area/43560.0
+        upstream_area_ac = upstream_accumulate(G1, n, parameter)/43560.0
+        tc_path = find_tc_path(G1, n, 'travel_time')
+        tc = sum([G1[u][v]['travel_time'] for u, v in pairwise(tc_path)]) + 3.0
+        intensity = philly_storm_intensity(tc) #in/hr
+        peakQ = 0.85 * intensity * upstream_area_ac # q = C*I*A, (cfs)
 
+        d['upstream_area_ac'] = upstream_area_ac
+        d['tc'] = tc
+        d['tc_path'] = tc_path
+        d['intensity'] = intensity
+        d['peakQ'] = peakQ
 
     for u,v,d in G1.edges_iter(data=True):
 
-        #get the downstream node's accumulated area
-        area = G1.node[u]['upstream_area_ac']
+        #set the sewers params
+        d['upstream_area_ac'] = G1.node[u]['upstream_area_ac']
+        d['tc'] = G1.node[v]['tc']
+        d['tc_path'] = G1.node[u]['tc_path']
+        d['peakQ'] = G1.node[u]['peakQ']
+        d['intensity'] = G1.node[u]['intensity']
 
-        #set this as the edge's upstream area
-        G1.edge[u][v]['upstream_area_ac'] = area
+        #compute the capacity fraction (hack prevent div/0)
+        d['capacity_fraction'] = round(d['peakQ']/max(d['capacity'], 1.0)*100)
 
-        #upstream tc
-        longest_path, longest_len = tc_path(G1, v)
-        G1.edge[u][v]['tc_length'] = longest_len
+        #retain networkx up/down node information
+        d['up_node'] = u
+        d['dn_node'] = v
+
+        #remove extraneous data from sewer edges
+        rmkeys = ['DownStream','LinerDate','LifecycleS','LinerType','Wkb','Wkt']
+        [d.pop(k, None) for k in rmkeys]
+        # #upstream tc
+        # G1, longest_path, longest_len = tc_path(G1, v)
+        # G1.edge[u][v]['tc_length'] = longest_len
 
     return G1
 
-def tc_path(G, start_node):
+
+def find_tc_path(G, start_node=None, parameter='length'):
+    """
+    find the path with the largest accumulation of the parameter (e.g. travel
+    time). Return a list of nodes along this path
+    """
+
+    if start_node is None:
+        start_node = nx.topological_sort(G, reverse=True)[0]
 
     #subset graph to all upstream
     up_nodes = nx.ancestors(G, start_node) | set({start_node})
@@ -108,15 +99,15 @@ def tc_path(G, start_node):
 
     top_nodes = [n for n in G2.nodes_iter() if G2.in_degree(n) == 0]
 
-    longest_path, longest_len = [], 0
+    tc_path, longest_len = [], 0
     for n in top_nodes:
         for path in nx.all_simple_paths(G2, source=n, target=start_node):
-            path_len = sum([G2[u][v]['length'] for u, v in pairwise(path)])
+            path_len = sum([G2[u][v][parameter] for u, v in pairwise(path)])
             if path_len > longest_len:
-                longest_path = path
+                tc_path = path
                 longest_len = path_len
 
-    return longest_path, longest_len
+    return tc_path
 
 def longest_path(shp=r'P:\06_Tools\sewertrace\data\oxford', firstn=None, draw=True):
     """
@@ -221,3 +212,41 @@ def longest_path(shp=r'P:\06_Tools\sewertrace\data\oxford', firstn=None, draw=Tr
 #     edge_labels=dict([((u,v,),round(d['weight'], 0)) for u,v,d in G1.edges_iter(data=True)])
 #     nx.draw_networkx_edge_labels(G1,pos, edge_labels)
     return (G1, pos, longest_path_nodes, longest_path_edges)
+
+
+def flow_splits(G):
+
+    splitnodes = []
+    for n, d in G.nodes_iter(data=True):
+        if G.out_degree(n) > 1:
+            #node has more than one successor, may be a flow split
+            if 'Subtype' in G.node[n] and G.node[n]['Subtype'] != 6:
+
+                G.node[n]['flow_split_keys']={}
+                #subtype = 6 is a summit manhole
+                splitnodes.append(n)
+
+
+    return splitnodes
+
+def find_resolved_splits(G):
+    splitters = flow_splits(G)
+    results = {}
+    for s in splitters:
+
+        #look for descendants with more than one path between the splitter
+        s_degree =  G.out_degree(s) #out degree, i.e. how many paths its split into
+
+        resolve_paths = []
+        multi_in_ds = [d for d in nx.descendants(G, s) if G.in_degree(d) > 1]
+        SUB = nx.subgraph(G, nbunch=multi_in_ds)
+        for desc in nx.topological_sort(SUB, reverse=True):
+            paths = [p for p in nx.all_simple_paths(G, source=s, target=desc)]
+
+            if len(paths) > 1 and len(paths) == s_degree:
+                resolve_paths += paths
+                break
+
+        results.update({s:resolve_paths})
+
+    return results
