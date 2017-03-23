@@ -1,22 +1,9 @@
 import math
-# =================
-# DATA CONNECTIONS
-# =================
-
-# ====================
-# HYDRUALIC EQUATIONS
-# ====================
 
 #define default hydraulic params
 default_min_slope = 0.01 # percent - assumed when slope is null
 default_TC_slope = 5.0 # percent - conservatively assumed for travel time calculation when slope
 pipeSizesAvailable = [18,21,24,27,30,36,42,48,54,60,66,72,78,84] #circular pipe sizes in inches
-
-def phillyStormPeak (tc, area, C):
-
-	#computes peak based on TC, Philly intensity, runoff C, and area in acres
-	I = 116 / ( tc + 17)
-	return round(C * I * area, 2) #CFS
 
 def philly_storm_intensity(tc):
 	"""
@@ -44,7 +31,9 @@ def hhcalcs_on_network(G):
 		data['capacity'] = A * V
 
 		#travel time
-		T = (data['length'] / V) / 60.0 # minutes
+
+		# T = (data['length'] / V) / 60.0 # minutes
+		T = (data['Shape_Leng'] / V) / 60.0 # minutes
 		data['travel_time'] = T
 
 	return G1

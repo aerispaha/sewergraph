@@ -66,9 +66,9 @@ map.on('load', function() {
           'line-color': {
               property: 'capacity_fraction',
               stops: [
-                [10, '#343332'],
-                [75, '#64bab4'],
-                [175  , '#cc0000'],
+                [2, '#343332'],
+                [50, '#64bab4'],
+                [200  , '#cc0000'],
                 [500, '#ea30e4']
               ]
         },
@@ -97,7 +97,7 @@ map.on('load', function() {
         }
 
         var feature = features[0];
-        console.log(feature)
+        console.log(feature.properties)
 
     //highlight the tc path
     tc_nodes = JSON.parse(feature.properties.tc_path)
@@ -111,7 +111,7 @@ map.on('load', function() {
 		//highlight whats been clicked
 		map.setFilter("sewer-hover", ["==", "OBJECTID", feature.properties.OBJECTID]);
 		var props = feature.properties
-    var slope = Math.round(props.Slope * 10) / 10
+    var slope = Math.round(props.Slope * 100) / 100
     var label = props.LABEL + ' @ '+ slope + '% (' + props.Year_Insta + ')'
     var area = Math.round(props.upstream_area_ac * 10) / 10
     var tc = Math.round(props.tc * 10) / 10
@@ -119,6 +119,7 @@ map.on('load', function() {
     var cap = Math.round(props.capacity * 10) / 10
     var cap_frac = props.capacity_fraction
     var v = Math.round(props.velocity * 10) / 10
+    var sticker_link = "<a href='" + props.STICKERLIN + "' >See Drawing</a>"
 
     var html_message = [
           label,
@@ -126,9 +127,11 @@ map.on('load', function() {
           'TC: ' + tc + 'mins',
           'Intsensity: ' + Math.round(props.intensity * 10) / 10 + 'in/hr',
           'Peak Q: ' + q + 'cfs',
+          'Velocity: ' + v + 'fps',
           'Capacity: ' + cap + 'cfs',
           'Cap Frac: ' + cap_frac + '%',
-          'Velocity: ' + v + 'fps',
+          'PHS Rate: ' + Math.round(props.phs_rate * 10) / 10 + 'cfs/ac',
+          sticker_link,
 				];
 
         var popup = new mapboxgl.Popup()

@@ -17,9 +17,6 @@ def upstream_accumulate(G, node, parameter=None):
     #find any flow splits
     splits = flow_splits(G)
 
-    #partition nodes
-    # split_flow_nodes = [n for n in ]
-
     if parameter is None:
         upstream_count = [1 for n in upstream_nodes if 'Depth' in G.node[n]]
         return sum(upstream_count)
@@ -61,7 +58,8 @@ def upstream_accumulate_all(G, parameter='Shape_Area'):
     for u,v,d in G1.edges_iter(data=True):
 
         #set the sewers params
-        d['upstream_area_ac'] = G1.node[u]['upstream_area_ac']
+        acres = upstream_accumulate(G1, u, parameter)/43560.0 #G1.node[u]['upstream_area_ac']
+        d['upstream_area_ac'] = acres
         d['tc'] = G1.node[v]['tc']
         d['tc_path'] = G1.node[u]['tc_path']
         d['peakQ'] = G1.node[u]['peakQ']
@@ -69,6 +67,7 @@ def upstream_accumulate_all(G, parameter='Shape_Area'):
 
         #compute the capacity fraction (hack prevent div/0)
         d['capacity_fraction'] = round(d['peakQ']/max(d['capacity'], 1.0)*100)
+        d['phs_rate'] = d['capacity'] / max(acres, 0.1) #prevent div/0 (FIX!!)
 
         #retain networkx up/down node information
         d['up_node'] = u
@@ -77,9 +76,6 @@ def upstream_accumulate_all(G, parameter='Shape_Area'):
         #remove extraneous data from sewer edges
         rmkeys = ['DownStream','LinerDate','LifecycleS','LinerType','Wkb','Wkt']
         [d.pop(k, None) for k in rmkeys]
-        # #upstream tc
-        # G1, longest_path, longest_len = tc_path(G1, v)
-        # G1.edge[u][v]['tc_length'] = longest_len
 
     return G1
 
@@ -206,11 +202,7 @@ def longest_path(shp=r'P:\06_Tools\sewertrace\data\oxford', firstn=None, draw=Tr
         edges = [(u,v) for u,v in pairwise(p)]
         nx.draw_networkx_edges(G1, pos, width=1, edgelist=edges, edge_color='r',
                                style='dotted')
-#     nx.draw_networkx_edges(G1,pos, width=weights)
-    # nx.draw_networkx_labels(G1,pos,font_size=14,font_family='sans-serif')#, labels=dict(zip(longest_path_nodes, longest_path_nodes)))
 
-#     edge_labels=dict([((u,v,),round(d['weight'], 0)) for u,v,d in G1.edges_iter(data=True)])
-#     nx.draw_networkx_edge_labels(G1,pos, edge_labels)
     return (G1, pos, longest_path_nodes, longest_path_edges)
 
 

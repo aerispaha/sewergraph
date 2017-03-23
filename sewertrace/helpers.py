@@ -56,7 +56,6 @@ def write_geojson(G, filename=None, geomtype='linestring', inproj='epsg:2272'):
         for u,v,d in G1.edges_iter(data=True):
             coordinates = json.loads(d['Json'])['coordinates']
             latlngs = [pyproj.transform(pa_plane, wgs, *xy) for xy in coordinates]
-            # del d['Wkb'], d['Json']
             geometry = LineString(latlngs)
 
             feature = Feature(geometry=geometry, properties=d)
@@ -66,7 +65,7 @@ def write_geojson(G, filename=None, geomtype='linestring', inproj='epsg:2272'):
         for u, d in G1.nodes_iter(data=True):
             coordinates = json.loads(d['Json'])['coordinates']
             latlngs = [pyproj.transform(pa_plane, wgs, *xy) for xy in coordinates]
-            del d['Wkb'], d['Json']
+
             geometry = Point(latlngs)
 
             feature = Feature(geometry=geometry, properties=d)
