@@ -3,6 +3,7 @@ HELPER FUNCTIONS FOR TRACING OPERATIONS
 """
 from itertools import tee, izip
 import networkx as nx
+from networkx.readwrite import json_graph
 import json
 from geojson import Feature, LineString, Point, FeatureCollection
 
@@ -56,8 +57,17 @@ def write_geojson(G, filename=None, geomtype='linestring', inproj='epsg:2272'):
         for u,v,d in G1.edges_iter(data=True):
             coordinates = json.loads(d['Json'])['coordinates']
             latlngs = [pyproj.transform(pa_plane, wgs, *xy) for xy in coordinates]
-            del d['Wkb'], d['Json']
             geometry = LineString(latlngs)
+
+            feature = Feature(geometry=geometry, properties=d)
+            features.append(feature)
+
+    if geomtype == 'point':
+        for u, d in G1.nodes_iter(data=True):
+            coordinates = json.loads(d['Json'])['coordinates']
+            latlngs = [pyproj.transform(pa_plane, wgs, *xy) for xy in coordinates]
+
+            geometry = Point(latlngs)
 
             feature = Feature(geometry=geometry, properties=d)
             features.append(feature)
@@ -78,6 +88,7 @@ def visualize(G, filename):
 
     #create geojson, find bbox and center
     geo_conduits = write_geojson(G)
+    # geo_nodes = write_geojson(G, geomtype='point')
 
     #get center point
     xs = [d['X_Coord'] for n,d in G.nodes_iter(data=True) if 'X_Coord' in d]
@@ -92,6 +103,10 @@ def visualize(G, filename):
             for line in bm:
                 if '//INSERT GEOJSON HERE ~~~~~' in line:
                     newmap.write('conduits = {};\n'.format(geojson.dumps(geo_conduits)))
+
+                    #write the network as a json object
+                    net_dict = json_graph.node_link_data(G)
+                    newmap.write('G = {};\n'.format(json.dumps(net_dict)))
                     # newmap.write('nodes = {};\n'.format(0))
                     # newmap.write('parcels = {};\n'.format(geojson.dumps(geo_parcels)))
             	if 'center: [-75.148946, 39.921685],' in line:

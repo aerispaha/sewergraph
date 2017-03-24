@@ -15,61 +15,62 @@
 <body>
 
 <div id='map'></div>
-<!-- <div class='col12 clearfix'>
-  <div class='pill'>
-    <a href='#' class='col12 button' data-path="P:\02_Projects\SouthPhila\SE_SFR\MasterModels\Combinations\M03_R05_W05\Report\new_conduits.json">Pizza Dog</a>
-    <a href='#' class='col12 button' data-path='cool'>Penny Dog</a>
-    <a href='#' class='col12 button' data-path='coolded'>Charlotte Dog</a>
-  </div>
-</div> -->
 
 <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="jsnetworkx.js"></script>
 <script>
 mapboxgl.accessToken = 'pk.eyJ1IjoiYWVyaXNwYWhhIiwiYSI6ImNpdWp3ZTUwbDAxMHoyeXNjdDlmcG0zbDcifQ.mjQG7vHfOacyFDzMgxawzw';
 var map = new mapboxgl.Map({
-    style:'mapbox://styles/mapbox/dark-v9',
+    style:'mapbox://styles/aerispaha/cj0nz8tcm00742rpnk39y840f',//'mapbox://styles/mapbox/dark-v9',
     center: [-75.148946, 39.921685],
     zoom: 15,
-    //pitch: 20,
-    //bearing: -17.6,
     container: 'map',
 });
 
 //INSERT BBOX HERE
 //INSERT GEOJSON HERE ~~~~~
 var sewer_source, parcel_source;
-$('.button').click(function() {
-  var pth = $(this).data('path')
-  console.log(pth);
-
-  $.get(pth, function (newdata) {
-        map.getSource('sewer-data').setData(newdata);
-    });
-
-
-});
 
 map.on('load', function() {
 
   //load the data into the map
   sewer_source = map.addSource('sewer-data', {'type': 'geojson', 'data': conduits});
-  // parcel_source = map.addSource('parcel-data', {'type': 'geojson','data': parcels});
-  // node_source = map.addSource('node-data', {'type': 'geojson','data': nodes});
 
-
+  map.addLayer({
+        "id": "sewer-tc",
+        'type': 'line',
+        "source": "sewer-data",
+        'paint': {
+            'line-color': '#2832ef',
+            'line-opacity': 0.4,
+      'line-width':15,
+        },
+    'filter':["in", "up_node", ""],
+    });
+  map.addLayer({
+          "id": "sewer-hover",
+          'type': 'line',
+          "source": "sewer-data",
+          'paint': {
+              'line-color': "#22c16b",//"#8384a4",
+              'line-opacity': 0.4,
+  			'line-width':15,
+          },
+  		'filter':["==", "'OBJECTID'", ""],
+      });
   map.addLayer({
       "id": "sewer",
       'type': 'line',
       "source": "sewer-data",
       'paint': {
           'line-color': {
-              property: 'upstream_area_ac',
+              property: 'capacity_fraction',
               stops: [
-                [0.2, '#343332'],//'#343332'],
-                [2, '#64bab4'],
-                [20  , '#cc0000'],
-                [1000, '#ea30e4']
+                [2, '#343332'],
+                [50, '#64bab4'],
+                [200  , '#cc0000'],
+                [500, '#ea30e4']
               ]
         },
           'line-opacity': 0.75,
@@ -77,50 +78,18 @@ map.on('load', function() {
       }
 	});
   map.addLayer({
-        "id": "sewer-hover",
-        'type': 'line',
-        "source": "sewer-data",
+        'id': 'sheds',
+        'source': 'composite',
+        'source-layer': 'theissen2-41fqsr',
+        'type': 'fill',
         'paint': {
-            'line-color': "#8384a4",
-            'line-opacity': 1,
-			'line-width':4,
+            'fill-color': 'rgb(74,52,183)',
+            'fill-opacity': 0.25,
         },
-		'filter':["==", "'OBJECTID'", ""],
+        'filter':["==", "FACILITYID", ""],
     });
 
-    // map.addLayer({
-    //     "id": "node",
-    //     'type': 'circle',
-    //     "source": "node-data",
-    //     'paint': {
-    //         'circle-color': 'rgb(220, 50, 60)',
-    //         'circle-opacity': 0.75,
-    // 	      'circle-radius':6,
-    //     }
-  	// });
 
-  // map.addLayer({
-  //     "id": "parcel-extrusion",
-  //     'type': 'fill-extrusion',
-  //     "source": "parcel-data",
-  //     'paint': {
-  //         'fill-extrusion-color': {
-  //             property: 'HoursFlooded',
-  //             stops: [
-  //               [0.0833, '#343332'],
-  //               [2.0, '#f91313']
-  //             ]
-  //           },
-  //           'fill-extrusion-height': {
-  //               property: 'HoursFlooded',
-  //               stops: [
-  //                 [0.0833, 0],
-  //                 [2.0, 200]
-  //               ]
-  //           },
-  //         'fill-extrusion-opacity': 0.85,
-  //     }
-	// });
 
 
     // When a click event occurs near a polygon, open a popup at the location of
@@ -130,27 +99,56 @@ map.on('load', function() {
 		//create a buffer to forgive those clumsy clicks
 		var x = e.point.x;
 		var y = e.point.y;
-		var clickbox = [[x-10, y-10], [x+10, y+10]]
+		var clickbox = [[x-5, y-5], [x+5, y+5]]
 
         var features = map.queryRenderedFeatures(clickbox, { layers: ['sewer'] });
         if (!features.length) {
 			      map.setFilter("sewer-hover", ["==", "OBJECTID", ""]);
+            map.setFilter("sewer-tc", ["in", "dn_node", ""]);
+            map.setFilter("sheds", ["==", "FACILITYID", ""]);
             return;
         }
 
         var feature = features[0];
-        console.log(feature)
+        console.log(feature.properties)
+
+    //highlight the tc path
+    tc_nodes = JSON.parse(feature.properties.tc_path)
+    up_nodes = JSON.parse(feature.properties.up_fids)
+
+    filter = [
+      'all',
+      ["in", "dn_node"].concat(tc_nodes),
+      ["in", "up_node"].concat(tc_nodes),
+    ]
+    map.setFilter("sewer-tc", filter);
+    map.setFilter("sheds", ["in", "FACILITYID"].concat(up_nodes));
 
 		//highlight whats been clicked
 		map.setFilter("sewer-hover", ["==", "OBJECTID", feature.properties.OBJECTID]);
 		var props = feature.properties
+    var slope = Math.round(props.Slope * 100) / 100
+    var label = props.LABEL + ' @ '+ slope + '% (' + props.Year_Insta + ')'
     var area = Math.round(props.upstream_area_ac * 10) / 10
-    var tc = Math.round(props.tc_length * 10) / 10
-    var html_message = [props.LABEL + ' (' + props.Year_Insta + ')',
-      'Upstream Area: ' + area + 'ac',
-      'Upstream Length: ' + tc + 'ft',
-							'Shape: '+ props.Shape,
-							];
+    var tc = Math.round(props.tc * 10) / 10
+    var q = Math.round(props.peakQ * 10) / 10
+    var cap = Math.round(props.capacity * 10) / 10
+    var cap_frac = props.capacity_fraction
+    var v = Math.round(props.velocity * 10) / 10
+    var sticker_link = "<a href='" + props.STICKERLIN + "' >See Drawing</a>"
+
+    var html_message = [
+          label,
+          'Drainage Area: ' + area + 'ac',
+          'TC: ' + tc + 'mins',
+          'Intsensity: ' + Math.round(props.intensity * 10) / 10 + 'in/hr',
+          'Peak Q: ' + q + 'cfs',
+          'Velocity: ' + v + 'fps',
+          'Capacity: ' + cap + 'cfs',
+          'Cap Frac: ' + cap_frac + '%',
+          'PHS Rate: ' + Math.round(props.phs_rate * 10) / 10 + 'cfs/ac',
+          sticker_link,
+				];
 
         var popup = new mapboxgl.Popup()
             .setLngLat(map.unproject(e.point))
