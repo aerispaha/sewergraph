@@ -58,6 +58,10 @@ def upstream_accumulate_all(G, parameter='Shape_Area'):
     for u,v,d in G1.edges_iter(data=True):
 
         #set the sewers params
+        upstream_nodes = nx.ancestors(G1, u) | set({u})
+        up_fids = [G.node[n]['FACILITYID'] for n in upstream_nodes
+                   if 'FACILITYID' in G.node[n]]
+        d['up_fids'] = up_fids
         acres = upstream_accumulate(G1, u, parameter)/43560.0 #G1.node[u]['upstream_area_ac']
         d['upstream_area_ac'] = acres
         d['tc'] = G1.node[v]['tc']

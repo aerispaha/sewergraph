@@ -3,6 +3,7 @@ HELPER FUNCTIONS FOR TRACING OPERATIONS
 """
 from itertools import tee, izip
 import networkx as nx
+from networkx.readwrite import json_graph
 import json
 from geojson import Feature, LineString, Point, FeatureCollection
 
@@ -102,6 +103,10 @@ def visualize(G, filename):
             for line in bm:
                 if '//INSERT GEOJSON HERE ~~~~~' in line:
                     newmap.write('conduits = {};\n'.format(geojson.dumps(geo_conduits)))
+
+                    #write the network as a json object
+                    net_dict = json_graph.node_link_data(G)
+                    newmap.write('G = {};\n'.format(json.dumps(net_dict)))
                     # newmap.write('nodes = {};\n'.format(0))
                     # newmap.write('parcels = {};\n'.format(geojson.dumps(geo_parcels)))
             	if 'center: [-75.148946, 39.921685],' in line:
