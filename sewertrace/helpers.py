@@ -8,6 +8,12 @@ import json
 from geojson import Feature, LineString, Point, FeatureCollection
 
 
+def sum_params_in_nodes(G, nodes, parameter):
+    """Sum the returned value of each parameter for all nodes
+    having the parameter, in network G"""
+    vals = [G.node[n][parameter] for n in nodes if parameter in G.node[n]]
+    return sum(vals)
+
 def data_from_adjacent_node(G, n, key='FACILITYID'):
     """can be the current node if it has the data key"""
 
@@ -64,14 +70,18 @@ def write_geojson(G, filename=None, geomtype='linestring', inproj='epsg:2272'):
 
     if geomtype == 'point':
         for u, d in G1.nodes_iter(data=True):
-            coordinates = json.loads(d['Json'])['coordinates']
-            latlngs = [pyproj.transform(pa_plane, wgs, *xy) for xy in coordinates]
+            try:
+                adjacent_n = G1[u].keys()[0]
+                adjacent_edge =  G1[u][adjacent_n]
+                coordinates = json.loads(adjacent_edge['Json'])['coordinates'][0]
+                latlngs = [pyproj.transform(pa_plane, wgs, *xy) for xy in [coordinates]]
 
-            geometry = Point(latlngs)
+                geometry = Point(latlngs[0])
 
-            feature = Feature(geometry=geometry, properties=d)
-            features.append(feature)
-
+                feature = Feature(geometry=geometry, properties=d)
+                features.append(feature)
+            except:
+                pass
     if filename is not None:
         with open(filename, 'wb') as f:
             f.write(json.dumps(FeatureCollection(features)))
@@ -88,7 +98,7 @@ def visualize(G, filename):
 
     #create geojson, find bbox and center
     geo_conduits = write_geojson(G)
-    # geo_nodes = write_geojson(G, geomtype='point')
+    geo_nodes = write_geojson(G, geomtype='point')
 
     #get center point
     xs = [d['X_Coord'] for n,d in G.nodes_iter(data=True) if 'X_Coord' in d]
@@ -103,10 +113,11 @@ def visualize(G, filename):
             for line in bm:
                 if '//INSERT GEOJSON HERE ~~~~~' in line:
                     newmap.write('conduits = {};\n'.format(geojson.dumps(geo_conduits)))
+                    newmap.write('nodes = {};\n'.format(geojson.dumps(geo_nodes)))
 
                     #write the network as a json object
-                    net_dict = json_graph.node_link_data(G)
-                    newmap.write('G = {};\n'.format(json.dumps(net_dict)))
+                    # net_dict = json_graph.node_link_data(G)
+                    # newmap.write('G = {};\n'.format(json.dumps(net_dict)))
                     # newmap.write('nodes = {};\n'.format(0))
                     # newmap.write('parcels = {};\n'.format(geojson.dumps(geo_parcels)))
             	if 'center: [-75.148946, 39.921685],' in line:

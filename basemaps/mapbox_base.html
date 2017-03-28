@@ -36,6 +36,7 @@ map.on('load', function() {
 
   //load the data into the map
   sewer_source = map.addSource('sewer-data', {'type': 'geojson', 'data': conduits});
+  node_source = map.addSource('node-data', {'type': 'geojson', 'data': nodes});
 
   map.addLayer({
         "id": "sewer-tc",
@@ -88,7 +89,21 @@ map.on('load', function() {
         },
         'filter':["==", "FACILITYID", ""],
     });
-
+    map.addLayer({
+          "id": "points",
+          "type": "symbol",
+          "source": {
+            'type':'geojson',
+            'data':nodes,
+          },
+          "layout": {
+              "icon-image": "{icon}-15",
+              "text-field": "{title}",
+              "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
+              "text-offset": [0, 0.6],
+              "text-anchor": "top"
+          }
+      });
 
 
 
@@ -125,7 +140,7 @@ map.on('load', function() {
     map.setFilter("sheds", ["in", "FACILITYID"].concat(up_nodes));
 
 		//highlight whats been clicked
-		map.setFilter("sewer-hover", ["==", "OBJECTID", feature.properties.OBJECTID]);
+		map.setFilter("sewer-hover", ["==", "dn_node", feature.properties.dn_node]);
 		var props = feature.properties
     var slope = Math.round(props.Slope * 100) / 100
     var label = props.LABEL + ' @ '+ slope + '% (' + props.Year_Insta + ')'
