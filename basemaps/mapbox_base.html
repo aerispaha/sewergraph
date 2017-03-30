@@ -36,7 +36,6 @@ map.on('load', function() {
 
   //load the data into the map
   sewer_source = map.addSource('sewer-data', {'type': 'geojson', 'data': conduits});
-  node_source = map.addSource('node-data', {'type': 'geojson', 'data': nodes});
 
   map.addLayer({
         "id": "sewer-tc",
@@ -58,7 +57,7 @@ map.on('load', function() {
               'line-opacity': 0.4,
   			'line-width':15,
           },
-  		'filter':["==", "'OBJECTID'", ""],
+  		'filter':["==", "FACILITYID", ""],
       });
   map.addLayer({
       "id": "sewer",
@@ -90,20 +89,39 @@ map.on('load', function() {
         'filter':["==", "FACILITYID", ""],
     });
     map.addLayer({
-          "id": "points",
-          "type": "symbol",
-          "source": {
-            'type':'geojson',
-            'data':nodes,
-          },
-          "layout": {
-              "icon-image": "{icon}-15",
-              "text-field": "{title}",
-              "text-font": ["Open Sans Semibold", "Arial Unicode MS Bold"],
-              "text-offset": [0, 0.6],
-              "text-anchor": "top"
-          }
-      });
+            "id": "sewer-splits",
+            'type': 'line',
+            "source": "sewer-data",
+            'paint': {
+                'line-color': "#f4e216",//"#8384a4",
+                'line-opacity': 0.9,
+    			'line-width':6,
+            },
+    		'filter':["==", "flow_split", "Y"],
+        });
+    map.addLayer({
+            "id": "sewer-descendants",
+            'type': 'line',
+            "source": "sewer-data",
+            'paint': {
+                'line-color': "#448e49",
+                'line-opacity': 0.9,
+    			'line-width':6,
+            },
+    		'filter':["==", "FACILITYID", ""],
+        });
+
+    map.addLayer({
+            "id": "sewer-limiting",
+            'type': 'line',
+            "source": "sewer-data",
+            'paint': {
+                'line-color': "#af433a",
+                'line-opacity': 0.9,
+    			'line-width':6,
+            },
+    		'filter':["==", "FACILITYID", ""],
+        });
 
 
 
@@ -118,9 +136,11 @@ map.on('load', function() {
 
         var features = map.queryRenderedFeatures(clickbox, { layers: ['sewer'] });
         if (!features.length) {
-			      map.setFilter("sewer-hover", ["==", "OBJECTID", ""]);
+			      map.setFilter("sewer-hover", ["==", "FACILITYID", ""]);
             map.setFilter("sewer-tc", ["in", "dn_node", ""]);
             map.setFilter("sheds", ["==", "FACILITYID", ""]);
+            map.setFilter("sewer-limiting", ["==", "FACILITYID", ""]);
+            map.setFilter("sewer-descendants", ["==", "FACILITYID", ""]);
             return;
         }
 
@@ -130,6 +150,7 @@ map.on('load', function() {
     //highlight the tc path
     tc_nodes = JSON.parse(feature.properties.tc_path)
     up_nodes = JSON.parse(feature.properties.up_fids)
+    descendants = JSON.parse(feature.properties.descendants)
 
     filter = [
       'all',
@@ -138,9 +159,11 @@ map.on('load', function() {
     ]
     map.setFilter("sewer-tc", filter);
     map.setFilter("sheds", ["in", "FACILITYID"].concat(up_nodes));
+    map.setFilter("sewer-descendants", ["in", "FACILITYID"].concat(descendants));
 
 		//highlight whats been clicked
-		map.setFilter("sewer-hover", ["==", "dn_node", feature.properties.dn_node]);
+		map.setFilter("sewer-hover", ["==", "FACILITYID", feature.properties.OBJECTID]);
+    map.setFilter("sewer-limiting", ["==", "FACILITYID", feature.properties.limiting_sewer]);
 		var props = feature.properties
     var slope = Math.round(props.Slope * 100) / 100
     var label = props.LABEL + ' @ '+ slope + '% (' + props.Year_Insta + ')'
@@ -150,6 +173,18 @@ map.on('load', function() {
     var cap = Math.round(props.capacity * 10) / 10
     var cap_frac = props.capacity_fraction
     var v = Math.round(props.velocity * 10) / 10
+
+    var net = 'nodes: ' + props.up_node + ' - ' + props.dn_node
+    if (props.split_node) {
+      net = net + ' splitting node: ' + props.split_node
+    }
+    if (props.resolve_node) {
+      net = net + ' resolve node: ' + props.resolve_node
+    }
+    if (props.flow_split_frac) {
+      net = net + '<br>Split Frac: ' +  Math.round(props.flow_split_frac*100) + '%'
+    }
+
     var sticker_link = "<a href='" + props.STICKERLIN + "' >See Drawing</a>"
 
     var html_message = [
@@ -162,6 +197,8 @@ map.on('load', function() {
           'Capacity: ' + cap + 'cfs',
           'Cap Frac: ' + cap_frac + '%',
           'PHS Rate: ' + Math.round(props.phs_rate * 10) / 10 + 'cfs/ac',
+          'PHS Shed Rate: ' + Math.round(props.limiting_rate * 10) / 10 + 'cfs/ac',
+          net,
           sticker_link,
 				];
 
