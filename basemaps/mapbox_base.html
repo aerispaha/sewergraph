@@ -30,6 +30,9 @@ var map = new mapboxgl.Map({
 
 //INSERT BBOX HERE
 //INSERT GEOJSON HERE ~~~~~
+G = new jsnx.DiGraph();
+G.addEdgesFrom(edges);
+
 var sewer_source, parcel_source;
 
 map.on('load', function() {
@@ -99,17 +102,33 @@ map.on('load', function() {
             },
     		'filter':["==", "flow_split", "Y"],
         });
-    map.addLayer({
-            "id": "sewer-descendants",
-            'type': 'line',
-            "source": "sewer-data",
-            'paint': {
-                'line-color': "#448e49",
-                'line-opacity': 0.9,
-    			'line-width':6,
-            },
-    		'filter':["==", "FACILITYID", ""],
-        });
+        
+    //ADD DATA CONV SEWERS
+    // map.addLayer({
+    //         "id": "data-conv",
+    //         'type':'line',
+    //         'source': 'composite',
+    //         "source-layer": "wwgravmains-5zkzwm",
+    //         'paint': {
+    //             'line-color': "#1b5dc1",//"#8384a4",
+    //             'line-opacity': 0.9,
+    // 			'line-width':1,
+    //         },
+    // 		// 'filter':["==", "flow_split", "Y"],
+    //     });
+
+
+    // map.addLayer({
+    //         "id": "sewer-descendants",
+    //         'type': 'line',
+    //         "source": "sewer-data",
+    //         'paint': {
+    //             'line-color': "#448e49",
+    //             'line-opacity': 0.9,
+    // 			'line-width':6,
+    //         },
+    // 		'filter':["==", "FACILITYID", ""],
+    //     });
 
     map.addLayer({
             "id": "sewer-limiting",
@@ -140,7 +159,7 @@ map.on('load', function() {
             map.setFilter("sewer-tc", ["in", "dn_node", ""]);
             map.setFilter("sheds", ["==", "FACILITYID", ""]);
             map.setFilter("sewer-limiting", ["==", "FACILITYID", ""]);
-            map.setFilter("sewer-descendants", ["==", "FACILITYID", ""]);
+            // map.setFilter("sewer-descendants", ["==", "FACILITYID", ""]);
             return;
         }
 
@@ -150,7 +169,8 @@ map.on('load', function() {
     //highlight the tc path
     tc_nodes = JSON.parse(feature.properties.tc_path)
     up_nodes = JSON.parse(feature.properties.up_fids)
-    descendants = JSON.parse(feature.properties.descendants)
+    // descendants = JSON.parse(feature.properties.descendants)
+
 
     filter = [
       'all',
@@ -159,7 +179,7 @@ map.on('load', function() {
     ]
     map.setFilter("sewer-tc", filter);
     map.setFilter("sheds", ["in", "FACILITYID"].concat(up_nodes));
-    map.setFilter("sewer-descendants", ["in", "FACILITYID"].concat(descendants));
+    // map.setFilter("sewer-descendants", ["in", "FACILITYID"].concat(descendants));
 
 		//highlight whats been clicked
 		map.setFilter("sewer-hover", ["==", "FACILITYID", feature.properties.OBJECTID]);

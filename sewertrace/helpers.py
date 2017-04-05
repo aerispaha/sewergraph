@@ -98,7 +98,7 @@ def visualize(G, filename):
 
     #create geojson, find bbox and center
     geo_conduits = write_geojson(G)
-    geo_nodes = write_geojson(G, geomtype='point')
+    # geo_nodes = write_geojson(G, geomtype='point')
 
     #get center point
     xs = [d['X_Coord'] for n,d in G.nodes_iter(data=True) if 'X_Coord' in d]
@@ -113,13 +113,14 @@ def visualize(G, filename):
             for line in bm:
                 if '//INSERT GEOJSON HERE ~~~~~' in line:
                     newmap.write('conduits = {};\n'.format(geojson.dumps(geo_conduits)))
-                    newmap.write('nodes = {};\n'.format(geojson.dumps(geo_nodes)))
+                    # newmap.write('nodes = {};\n'.format(geojson.dumps(geo_nodes)))
 
                     #write the network as a json object
                     # net_dict = json_graph.node_link_data(G)
-                    # newmap.write('G = {};\n'.format(json.dumps(net_dict)))
-                    # newmap.write('nodes = {};\n'.format(0))
-                    # newmap.write('parcels = {};\n'.format(geojson.dumps(geo_parcels)))
+                    edges = G.edges()
+                    # newmap.write('net_json = {};\n'.format(json.dumps(net_dict)))
+                    newmap.write('edges = {};\n'.format(json.dumps(edges)))
+
             	if 'center: [-75.148946, 39.921685],' in line:
 					newmap.write('center:[{}, {}],\n'.format(c[0], c[1]))
                 if '//INSERT BBOX HERE' in line:
