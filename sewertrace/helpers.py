@@ -36,6 +36,47 @@ def data_from_adjacent_node(G, n, key='FACILITYID'):
         else:
             print '{} not found in {}'.format(key, n)
 
+def get_node_values(G, nodes, parameters):
+    """return a list of values in nodes having the parameter"""
+
+    #if the parameter is in the node, return its value
+    upstream_vals = [G.node[n][p] for n in nodes
+                      for p in parameters if p in G.node[n]]
+
+    return upstream_vals
+
+def clean_dict(mydict, keep_keys=None, rm_keys=None):
+    """
+    remove unwanted items in dicts
+    """
+    if keep_keys is not None:
+        for k in mydict.keys():
+            if k not in keep_keys:
+                del mydict[k]
+
+    if rm_keys is not None:
+        for k in mydict.keys():
+            if k in rm_keys:
+                del mydict[k]
+
+def clean_network_data(G):
+    """
+    remove unecessary fields from DataConv from the network
+    """
+    G1 = G.copy()
+    for u,v,d in G1.edges_iter(data=True):
+        node_keeper_keys = ['X_Coord', 'Y_Coord','total_area_ac',
+                            'Shape_Area', 'FACILITYID']
+        edge_keeper_keys = ['Diameter', 'Height', 'FACILITYID','Json',
+                            'Slope', 'Shape_Leng', 'Year_Insta', 'PIPESHAPE',
+                            'PIPE_TYPE', 'STICKERLIN', 'LABEL','ELEVATION_',
+                            'ELEVATIONI','calculated_slope']
+        clean_dict(G1.node[u], node_keeper_keys)
+        clean_dict(G1.node[v], node_keeper_keys)
+        clean_dict(d, edge_keeper_keys)
+
+    return G1
+
 def pairwise(iterable):
     """
     take a list and pair up items sequentially. E.g. list of nodes to

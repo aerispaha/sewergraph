@@ -2,23 +2,27 @@ from itertools import tee, izip
 import networkx as nx
 import random
 import matplotlib.pyplot as plt
-from .helpers import data_from_adjacent_node, pairwise, visualize, open_file
+from helpers import (pairwise, visualize, open_file,
+                     clean_network_data, get_node_values)
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
+from resolve_data import resolve_slope_gaps
 import os
 
 class SewerNet(object):
-    def __init__(self, shapefile):
+    def __init__(self, shapefile, boundary_conditions=None):
 
         self.shapefile_path = shapefile
         print 'reading shapefile...'
         G = nx.read_shp(shapefile)
 
-        #clean up the network
+        #clean up the network (remove unecessary DataConv fields)
         G = nx.convert_node_labels_to_integers(G)
-        for u,v,d in G.edges_iter(data=True):
-            rmkeys = ['DownStream', 'LinerDate', 'LifecycleS',
-                      'LinerType', 'Wkb', 'Wkt']
-            [d.pop(k, None) for k in rmkeys]
+
+        print 'resolving gaps...'
+        G = resolve_slope_gaps(G)
+        G = clean_network_data(G)
+
+
 
         #perform travel time and capacity calcs
         print 'hhcacls...'
@@ -27,6 +31,11 @@ class SewerNet(object):
         #id flow split sewers and calculate split fractions
         print 'analyzing flow splits...'
         G = analyze_flow_splits(G)
+
+        if boundary_conditions is not None:
+            print 'adding boundary conditions...'
+            add_boundary_conditions(G, boundary_conditions)
+        self.boundary_conditions = boundary_conditions
 
         print 'accumulating drainage areas...'
         G = accumulate_area(G)
@@ -47,10 +56,15 @@ class SewerNet(object):
                 else:
                     filtered_nodes += [u,v]
 
+        #run the hydrologic calculations on sewers meeting filter criteria
         nbunch = set(filtered_nodes)
         self.nbunch = nbunch
-
         self.G = hydrologic_calcs_on_sewers(self.G, nbunch=nbunch)
+
+        #find limiting sewers in the network
+        self.limiting_sewers = list(set([d['limiting_sewer'] for  u,v,d, in
+                                         self.G.edges_iter(data=True)
+                                         if 'limiting_sewer' in d]))
 
 
     def to_map(self, filename=None, startfile=True):
@@ -63,6 +77,17 @@ class SewerNet(object):
         if startfile:
             open_file(filename)
 
+def add_boundary_conditions(G, data):
+    """
+    add additional data to nodes in the sewer_net.G. Do this
+    before running the accumulate_area
+    """
+    for n,d in G.nodes_iter(data=True):
+        if 'FACILITYID' in d:
+            for fid in data.keys():
+                if fid in d['FACILITYID']:
+                    print 'adding data to {}'.format(fid)
+                    d.update(data[fid])
 
 def hydrologic_calcs_on_sewers(G, nbunch=None):
     G1 = G.copy()
@@ -75,6 +100,7 @@ def hydrologic_calcs_on_sewers(G, nbunch=None):
         #find path and calculate tc (sum trave)
         tc_path = find_tc_path(G1, u, 'travel_time')
         tc = sum([G1[u][v]['travel_time'] for u,v in pairwise(tc_path)]) + 3.0
+        tc += sum([G.node[n].get('travel_time', 0) for n in tc_path]) #boundary tc
         intensity = philly_storm_intensity(tc) #in/hr
         peakQ = 0.85 * intensity * acres # q = C*I*A, (cfs)
 
@@ -106,7 +132,8 @@ def accumulate_area(G):
     G1 = G.copy()
 
     for n in nx.topological_sort(G1):
-        area = sum(get_node_values(G1, [n], 'Shape_Area')) / 43560.0
+        area = sum(get_node_values(G1, [n], ['Shape_Area', 'additional_area']))
+        area = area / 43560.0 #to acres
         for p in G1.predecessors(n):
             area += G1.node[p]['total_area_ac']
             if 'flow_split_frac' in G1[p][n]:
@@ -164,15 +191,6 @@ def upstream_accumulate_all(G, parameter='Shape_Area', nbunch=None):
 
     return G1
 
-
-def get_node_values(G, nodes, parameter):
-    """return a list of values in nodes having the parameter"""
-
-    #if the parameter is in the node, return its value
-    upstream_vals = [G.node[n][parameter] for n in nodes
-                     if parameter in G.node[n]]
-    return upstream_vals
-
 def find_tc_path(G, start_node=None, parameter='length'):
     """
     find the path with the largest accumulation of the parameter (e.g. travel
@@ -192,6 +210,10 @@ def find_tc_path(G, start_node=None, parameter='length'):
     for n in top_nodes:
         for path in nx.all_simple_paths(G2, source=n, target=start_node):
             path_len = sum([G2[u][v][parameter] for u,v in pairwise(path)])
+
+            #add any added boundary conditions on nodes
+            path_len += sum([G2.node[m].get(parameter, 0) for m in path])
+
             if path_len > longest_len:
                 tc_path = path
                 longest_len = path_len
@@ -219,7 +241,7 @@ def analyze_downstream(G, nbunch=None, in_place=False):
 
         if descendants:
             sorted_rates = sorted(rates)
-            d['descendants'] = [e['FACILITYID'] for e in descendants]
+            # d['descendants'] = [e['FACILITYID'] for e in descendants]
             d['limiting_rate'], d['limiting_sewer'] = sorted_rates[0]
 
     return G1
@@ -238,30 +260,6 @@ def analyze_flow_splits(G):
     #iterate through nodes having more than one out degree
     splitters = [(n, deg) for n, deg in G1.out_degree_iter() if deg > 1]
     for splitter, out_degree in splitters:
-
-        # #find the where the split is resolved
-        # candidates = [m for m in nx.descendants(G1, splitter)
-        #               if G1.in_degree(m) > 1]
-        #
-        # #find nodes that have mulitple paths connecting to split node
-        # resolver_paths = []
-        # for r in candidates:
-        #     paths = list(nx.all_simple_paths(G1, source=splitter, target=r))
-        #     if len(paths) > 1:
-        #         resolver_paths += paths
-        #
-        # #find the shortest of all paths connecting the splitter & resolver
-        # #any longer paths are extensions along the same split.
-        # if resolver_paths:
-        #     shortest = sorted(resolver_paths, key = len)[0]
-        #     resolver = shortest[-1] #last node of the shortest path = resolver
-        #     up_edges = [(up, resolver) for up in G1.predecessors_iter(resolver)]
-        #     #tag the nodes and edges accordingly
-        #     G1.node[resolver]['up_splitter'] = splitter
-        #     G1.node[splitter]['dn_resolver'] = resolver
-        #     for u,v in up_edges:
-        #         G1[u][v]['flow_resolve'] = 'Y'
-        #         G1[u][v]['split_node'] = splitter
 
         #record which segments are downstream of this node
         dwn_edges = [(splitter, dn) for dn in G1.successors_iter(splitter)]

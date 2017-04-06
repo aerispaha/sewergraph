@@ -21,7 +21,13 @@ def hhcalcs_on_network(G):
 
 		#velocity
 		diameter = max( data['Diameter'], data['Height'])
-		slope = max(data['Slope'], 0.2)
+		if 'calculated_slope' in data:
+
+			slope = max(data['calculated_slope'], 0.2)
+			data['Slope'] = slope
+		else:
+			slope = max(data['Slope'], 0.2)
+
 		V = mannings_velocity(diameter, slope)
 		V = max(V, 2.0) #min 2fps avoid zero div
 		data['velocity'] = max(V, 2.0)

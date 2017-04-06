@@ -148,10 +148,11 @@ map.on('load', function() {
             'type': 'line',
             "source": "sewer-data",
             'paint': {
-                'line-color': "#af433a",
+                'line-color': "#ed8244",
                 'line-opacity': 0.9,
-    			'line-width':6,
-            },
+                'line-width':30,
+              },
+        'line-join':'round',
     		'filter':["==", "FACILITYID", ""],
         });
 
@@ -197,7 +198,7 @@ map.on('load', function() {
     // map.setFilter("sewer-descendants", ["in", "FACILITYID"].concat(descendants));
 
 		//highlight whats been clicked
-		map.setFilter("sewer-hover", ["==", "FACILITYID", feature.properties.OBJECTID]);
+		map.setFilter("sewer-hover", ["==", "FACILITYID", feature.properties.FACILITYID]);
     map.setFilter("sewer-limiting", ["==", "FACILITYID", feature.properties.limiting_sewer]);
 		var props = feature.properties
     var slope = Math.round(props.Slope * 100) / 100
