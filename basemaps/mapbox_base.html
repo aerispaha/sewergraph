@@ -30,9 +30,22 @@ var map = new mapboxgl.Map({
 
 //INSERT BBOX HERE
 //INSERT GEOJSON HERE ~~~~~
+
+//create the jsnetworkx graph
 G = new jsnx.DiGraph();
 G.addEdgesFrom(edges);
-
+G.addNodesFrom(nodes)
+var get_upstream_facility_ids = function(G, target){
+  //jsnetworkx trace upstream
+  paths = jsnx.shortestPath(G, {target:target});
+  var up_fids = new Set();
+  jsnx.forEach(paths, function(n) {
+    up_fids.add(G.node.get(n[0]).FACILITYID)
+  });
+  let up_fid_arr = Array.from(up_fids);
+  up_fids = up_fid_arr.filter(function(n){ return n != undefined });
+  return up_fids;
+}
 var sewer_source, parcel_source;
 
 map.on('load', function() {
@@ -102,7 +115,7 @@ map.on('load', function() {
             },
     		'filter':["==", "flow_split", "Y"],
         });
-        
+
     //ADD DATA CONV SEWERS
     // map.addLayer({
     //         "id": "data-conv",
@@ -164,11 +177,13 @@ map.on('load', function() {
         }
 
         var feature = features[0];
-        console.log(feature.properties)
+
 
     //highlight the tc path
     tc_nodes = JSON.parse(feature.properties.tc_path)
-    up_nodes = JSON.parse(feature.properties.up_fids)
+    // up_nodes = JSON.parse(feature.properties.up_fids)
+    up_fids = get_upstream_facility_ids(G, feature.properties.dn_node)
+
     // descendants = JSON.parse(feature.properties.descendants)
 
 
@@ -178,7 +193,7 @@ map.on('load', function() {
       ["in", "up_node"].concat(tc_nodes),
     ]
     map.setFilter("sewer-tc", filter);
-    map.setFilter("sheds", ["in", "FACILITYID"].concat(up_nodes));
+    map.setFilter("sheds", ["in", "FACILITYID"].concat(up_fids));
     // map.setFilter("sewer-descendants", ["in", "FACILITYID"].concat(descendants));
 
 		//highlight whats been clicked
@@ -204,6 +219,9 @@ map.on('load', function() {
     if (props.flow_split_frac) {
       net = net + '<br>Split Frac: ' +  Math.round(props.flow_split_frac*100) + '%'
     }
+    console.log(net)
+    // console.log(feature.properties);
+
 
     var sticker_link = "<a href='" + props.STICKERLIN + "' >See Drawing</a>"
 

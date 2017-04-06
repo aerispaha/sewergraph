@@ -2,7 +2,7 @@ from itertools import tee, izip
 import networkx as nx
 import random
 import matplotlib.pyplot as plt
-from .helpers import data_from_adjacent_node, pairwise, visualize
+from .helpers import data_from_adjacent_node, pairwise, visualize, open_file
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
 import os
 
@@ -58,10 +58,10 @@ class SewerNet(object):
         if filename is None:
             filename = os.path.join(shapefile_path, 'map.html')
 
-        visualize(self.G.subgraph(self.nbunch), filename)
+        visualize(self.G.subgraph(self.nbunch), filename, self.G)
 
         if startfile:
-            os.startfile(filename)
+            open_file(filename)
 
 
 def hydrologic_calcs_on_sewers(G, nbunch=None):
@@ -92,7 +92,7 @@ def hydrologic_calcs_on_sewers(G, nbunch=None):
         #retain networkx up/down node information
         d['up_node'] = u
         d['dn_node'] = v
-        d['up_fids'] = get_node_values(G1, up_nodes, 'FACILITYID')
+        # d['up_fids'] = get_node_values(G1, up_nodes, 'FACILITYID')
 
     return G1
 
@@ -239,29 +239,29 @@ def analyze_flow_splits(G):
     splitters = [(n, deg) for n, deg in G1.out_degree_iter() if deg > 1]
     for splitter, out_degree in splitters:
 
-        #find the where the split is resolved
-        candidates = [m for m in nx.descendants(G1, splitter)
-                      if G1.in_degree(m) > 1]
-
-        #find nodes that have mulitple paths connecting to split node
-        resolver_paths = []
-        for r in candidates:
-            paths = list(nx.all_simple_paths(G1, source=splitter, target=r))
-            if len(paths) > 1:
-                resolver_paths += paths
-
-        #find the shortest of all paths connecting the splitter & resolver
-        #any longer paths are extensions along the same split.
-        if resolver_paths:
-            shortest = sorted(resolver_paths, key = len)[0]
-            resolver = shortest[-1] #last node of the shortest path = resolver
-            up_edges = [(up, resolver) for up in G1.predecessors_iter(resolver)]
-            #tag the nodes and edges accordingly
-            G1.node[resolver]['up_splitter'] = splitter
-            G1.node[splitter]['dn_resolver'] = resolver
-            for u,v in up_edges:
-                G1[u][v]['flow_resolve'] = 'Y'
-                G1[u][v]['split_node'] = splitter
+        # #find the where the split is resolved
+        # candidates = [m for m in nx.descendants(G1, splitter)
+        #               if G1.in_degree(m) > 1]
+        #
+        # #find nodes that have mulitple paths connecting to split node
+        # resolver_paths = []
+        # for r in candidates:
+        #     paths = list(nx.all_simple_paths(G1, source=splitter, target=r))
+        #     if len(paths) > 1:
+        #         resolver_paths += paths
+        #
+        # #find the shortest of all paths connecting the splitter & resolver
+        # #any longer paths are extensions along the same split.
+        # if resolver_paths:
+        #     shortest = sorted(resolver_paths, key = len)[0]
+        #     resolver = shortest[-1] #last node of the shortest path = resolver
+        #     up_edges = [(up, resolver) for up in G1.predecessors_iter(resolver)]
+        #     #tag the nodes and edges accordingly
+        #     G1.node[resolver]['up_splitter'] = splitter
+        #     G1.node[splitter]['dn_resolver'] = resolver
+        #     for u,v in up_edges:
+        #         G1[u][v]['flow_resolve'] = 'Y'
+        #         G1[u][v]['split_node'] = splitter
 
         #record which segments are downstream of this node
         dwn_edges = [(splitter, dn) for dn in G1.successors_iter(splitter)]

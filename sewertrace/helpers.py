@@ -6,7 +6,14 @@ import networkx as nx
 from networkx.readwrite import json_graph
 import json
 from geojson import Feature, LineString, Point, FeatureCollection
+import os, sys, subprocess
 
+def open_file(filename):
+    if sys.platform == "win32":
+        os.startfile(filename)
+    else:
+        opener ="open" if sys.platform == "darwin" else "xdg-open"
+        subprocess.call([opener, filename])
 
 def sum_params_in_nodes(G, nodes, parameter):
     """Sum the returned value of each parameter for all nodes
@@ -90,10 +97,13 @@ def write_geojson(G, filename=None, geomtype='linestring', inproj='epsg:2272'):
     else:
         return FeatureCollection(features)
 
-def visualize(G, filename):
+def visualize(G, filename, full_G=None):
     import geojson
 
-    basemap_path = r'P:\06_Tools\sewertrace\basemaps\mapbox_base.html'
+    # This is the project root #HACK
+    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    BASEMAP_PATH = os.path.join(ROOT_DIR,'basemaps','mapbox_base.html')
+    # basemap_path = r'P:\06_Tools\sewertrace\basemaps\mapbox_base.html'
 
 
     #create geojson, find bbox and center
@@ -107,7 +117,7 @@ def visualize(G, filename):
     bbox = [(min(xs), min(ys)), (max(xs), max(ys))]
 
 
-    with open(basemap_path, 'r') as bm:
+    with open(BASEMAP_PATH, 'r') as bm:
         # filename = os.path.join(os.path.dirname(geocondpath), self.alt_report.model.name + '.html')
         with open(filename, 'wb') as newmap:
             for line in bm:
@@ -118,8 +128,15 @@ def visualize(G, filename):
                     #write the network as a json object
                     # net_dict = json_graph.node_link_data(G)
                     edges = G.edges()
+                    nodes = G.nodes(data=True)
+                    if full_G is not None:
+                        #pass the entire network to jsnetworkx
+                        edges = full_G.edges()
+                        nodes = full_G.nodes(data=True)
+
                     # newmap.write('net_json = {};\n'.format(json.dumps(net_dict)))
                     newmap.write('edges = {};\n'.format(json.dumps(edges)))
+                    newmap.write('nodes = {};\n'.format(json.dumps(nodes)))
 
             	if 'center: [-75.148946, 39.921685],' in line:
 					newmap.write('center:[{}, {}],\n'.format(c[0], c[1]))
