@@ -30,8 +30,8 @@ def search(G, u, v, search_depth, length=0, data=[], el_var = 'ELEVATION_'):
 
 def recommend_slope(G, u, v, el_var='ELEVATION_'):
 
-    res = search(G, u, v, search_depth=10, el_var=el_var)
-    rep_edges =  helpers.pairwise([r[1] for r in res]) #upstream repr edges
+    res = search(G, u, v, search_depth=3, el_var=el_var)
+    rep_edges =  list(helpers.pairwise([r[1] for r in res]))#upstream repr edges
     slopes = []
     wt_slopes = []
     total_len = 0
@@ -40,15 +40,19 @@ def recommend_slope(G, u, v, el_var='ELEVATION_'):
         for path in nx.all_simple_paths(G, source=s, target=t):
             path_len = sum([G[u][v]['Shape_Leng'] for u,v in helpers.pairwise(path)])
             up_el, dn_el = G.node[s][el_var], G.node[t][el_var]
-            slope = (up_el-dn_el) / path_len
+            slope = (up_el - dn_el) / path_len
             total_len += path_len
             slopes.append(slope)
             wt_slopes.append((up_el-dn_el))
 
     if total_len != 0:
-        return sum([s for s in wt_slopes if s > 0]) / total_len #length weighted average slope of upstream edges
+        #length weighted average slope of upstream edges
+        weighed_avg = sum([s for s in wt_slopes if s > 0]) / total_len
+        # fids = [G[v][u]['FACILITYID'] for u,v in rep_edges]
+        print 'hi ', rep_edges
+        return  (weighed_avg, rep_edges)
     else:
-        return None
+        return (None, None) #this is dumb
 
 def resolve_slope_gaps(G, nbunch=None):
     """
@@ -57,21 +61,18 @@ def resolve_slope_gaps(G, nbunch=None):
     """
 
     G1 = G.copy()
-    # zero_slope_sewers = list(set([(d['FACILITYID']) for  u,v,d, in
-    #                               net.G.edges_iter(data=True)
-    #                               if d['Slope'] == 0.0]))
-    #
-    # nbunch = list(set(list(chain.from_iterable(zero_slope_sewers))))
+
 
     for u,v,d in G1.edges_iter(data=True, nbunch=nbunch):
 
         #find bad slope edge
         if d['Slope'] == 0:
             # print 'attempting to resolve {}'.format((u,v))
-            s = recommend_slope(G1, u, v, 'ELEVATION_')
+            s, fids = recommend_slope(G1, u, v, 'ELEVATION_')
             if s is not None:
                 d['calculated_slope'] = s * 100.0
-                # print d['FACILITYID'], 'calc slope', s * 100.0
+                d['calculated_slope_fids'] = fids
+                # print d['FACILITYID'], 'calc slope', s * 100.0, fids
 
 
     return G1

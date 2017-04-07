@@ -66,11 +66,12 @@ def clean_network_data(G):
     G1 = G.copy()
     for u,v,d in G1.edges_iter(data=True):
         node_keeper_keys = ['X_Coord', 'Y_Coord','total_area_ac',
-                            'Shape_Area', 'FACILITYID']
+                            'Shape_Area', 'FACILITYID', 'ELEVATION_']
         edge_keeper_keys = ['Diameter', 'Height', 'FACILITYID','Json',
                             'Slope', 'Shape_Leng', 'Year_Insta', 'PIPESHAPE',
                             'PIPE_TYPE', 'STICKERLIN', 'LABEL','ELEVATION_',
-                            'ELEVATIONI','calculated_slope']
+                            'ELEVATIONI','calculated_slope',
+                            'calculated_slope_fids']
         clean_dict(G1.node[u], node_keeper_keys)
         clean_dict(G1.node[v], node_keeper_keys)
         clean_dict(d, edge_keeper_keys)
@@ -138,12 +139,12 @@ def write_geojson(G, filename=None, geomtype='linestring', inproj='epsg:2272'):
     else:
         return FeatureCollection(features)
 
-def visualize(G, filename, full_G=None):
+def visualize(G, filename, full_G=None, basemap='mapbox_base.html'):
     import geojson
 
     # This is the project root #HACK
     ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    BASEMAP_PATH = os.path.join(ROOT_DIR,'basemaps','mapbox_base.html')
+    BASEMAP_PATH = os.path.join(ROOT_DIR,'basemaps',basemap)
     # basemap_path = r'P:\06_Tools\sewertrace\basemaps\mapbox_base.html'
 
 
