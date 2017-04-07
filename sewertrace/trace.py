@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from helpers import (pairwise, visualize, open_file,
                      clean_network_data, get_node_values)
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
-from resolve_data import resolve_slope_gaps
+from resolve_data import resolve_slope_gaps,resolve_geom_slope_gaps
 import os
 
 class SewerNet(object):
@@ -19,10 +19,8 @@ class SewerNet(object):
         G = nx.convert_node_labels_to_integers(G)
 
         print 'resolving gaps...'
-        G = resolve_slope_gaps(G)
         G = clean_network_data(G)
-
-
+        G = resolve_geom_slope_gaps(G)
 
         #perform travel time and capacity calcs
         print 'hhcacls...'
@@ -61,11 +59,6 @@ class SewerNet(object):
         self.nbunch = nbunch
         self.G = hydrologic_calcs_on_sewers(self.G, nbunch=nbunch)
 
-        #find limiting sewers in the network
-        self.limiting_sewers = list(set([d['limiting_sewer'] for  u,v,d, in
-                                         self.G.edges_iter(data=True)
-                                         if 'limiting_sewer' in d]))
-
 
     def to_map(self, filename=None, startfile=True):
 
@@ -96,6 +89,7 @@ def hydrologic_calcs_on_sewers(G, nbunch=None):
         #collect the upstream nodes, sum area
         up_nodes = nx.ancestors(G1, u) | set({u}) #upstream nodes
         acres = G1.node[u]['total_area_ac']
+        acres *= d.get('flow_split_frac', 1) #split the area if necessary
 
         #find path and calculate tc (sum trave)
         tc_path = find_tc_path(G1, u, 'travel_time')

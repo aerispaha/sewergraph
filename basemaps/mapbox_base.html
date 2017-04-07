@@ -179,7 +179,7 @@ map.on('load', function() {
 
         var feature = features[0];
 
-
+    console.log(feature.properties);
     //highlight the tc path
     tc_nodes = JSON.parse(feature.properties.tc_path)
     // up_nodes = JSON.parse(feature.properties.up_fids)
@@ -227,6 +227,7 @@ map.on('load', function() {
     var sticker_link = "<a href='" + props.STICKERLIN + "' >See Drawing</a>"
 
     var html_message = [
+          props.FACILITYID,
           label,
           'Drainage Area: ' + area + 'ac',
           'TC: ' + tc + 'mins',
