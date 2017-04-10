@@ -61,9 +61,14 @@ def clean_dict(mydict, keep_keys=None, rm_keys=None):
 
 def clean_network_data(G):
     """
-    remove unecessary fields from DataConv from the network
+    remove unecessary fields from DataConv from the network, remove isolated
+    nodes
     """
     G1 = G.copy()
+
+    #remove isolated nodes
+    G1.remove_nodes_from(nx.isolates(G1))
+
     for u,v,d in G1.edges_iter(data=True):
         node_keeper_keys = ['X_Coord', 'Y_Coord','total_area_ac',
                             'Shape_Area', 'FACILITYID', 'ELEVATION_']
