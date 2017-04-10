@@ -3,7 +3,7 @@ import math
 #define default hydraulic params
 default_min_slope = 0.01 # percent - assumed when slope is null
 default_TC_slope = 5.0 # percent - conservatively assumed for travel time calculation when slope
-pipeSizesAvailable = [18,21,24,27,30,36,42,48,54,60,66,72,78,84] #circular pipe sizes in inches
+sewer_diameters = [18,21,24,27,30,36,42,48,54,60,66,72,78,84] #circular pipe sizes in inches
 
 def philly_storm_intensity(tc):
 	"""
@@ -86,12 +86,6 @@ def xarea( shape, diameter, height, width ):
 	else:
 		return 0
 
-def  minSlope( slope ):
-	#replaces null slope value with the assumed minimum 0.01%
-	if slope == None:
-		return 0.01
-	else:
-		return slope
 
 def hydraulicRadius(shape, diameter, height, width ):
 	#calculate full flow hydraulic radius of pipe

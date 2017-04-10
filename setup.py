@@ -12,6 +12,7 @@ AUTHOR_EMAIL = 'aerispaha@gmail.com'
 
 install_requires = [
     'networkx',
+    'pandas',
     ]
 
 setup(name='sewertrace',
