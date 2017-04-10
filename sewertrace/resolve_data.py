@@ -60,9 +60,6 @@ def resolve_geometry(G, u, v, search_depth=5):
         v = dn
         i +=1
 
-
-
-
     return geom, diam, h, w, label, fid
 
 def resolve_slope(G, u, v, search_depth=10):
@@ -164,7 +161,7 @@ def resolve_geom_slope_gaps(G, nbunch=None):
     for u,v,d in G1.edges_iter(data=True, nbunch=nbunch):
 
         if d['PIPESHAPE'] not in ['BOX', 'CIR', 'EGG']:
-            d['PIPESHAPE'] = None #overwrite,  rid of 'UNK' issues
+            d['PIPESHAPE'] = None #overwrite, rid of 'UNK' issues
 
             #resolve geometry based on adjacent upstream sewer
             shape, diam, h, w, label, fid = resolve_geometry(G1, u, v)

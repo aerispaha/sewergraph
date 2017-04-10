@@ -1,7 +1,5 @@
-from itertools import tee, izip
 import networkx as nx
-import random
-import matplotlib.pyplot as plt
+import pandas as pd
 from helpers import (pairwise, visualize, open_file,
                      clean_network_data, get_node_values)
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
@@ -59,6 +57,19 @@ class SewerNet(object):
         self.nbunch = nbunch
         self.G = hydrologic_calcs_on_sewers(self.G, nbunch=nbunch)
 
+    def conduits(self):
+        """
+        return the networkx network edges as a Pandas Dataframe
+        """
+        fids = [d['FACILITYID'] for u,v,d in self.G.edges(data=True)]
+        data = [d for u,v,d in self.G.edges(data=True)]
+        df = pd.DataFrame(data=data, index=fids)
+        cols = ['LABEL', 'Slope', 'capacity', 'peakQ','tc', 'intensity',
+                'upstream_area_ac', 'phs_rate','limiting_rate','limiting_sewer',
+                'Diameter','Height', 'Width', 'Year_Insta', 'FACILITYID',
+                'Shape_Leng']
+
+        return df[cols]
 
     def to_map(self, filename=None, startfile=True):
 
