@@ -39,8 +39,8 @@ class SewerNet(object):
         G = accumulate_travel_time(G)
         self.G = G
 
-        self.top_nodes = [n for n in G.nodes_iter() if G.in_degree(n) == 0]
-        self.terminal_nodes = [n for n in G.nodes_iter() if G.out_degree(n) == 0]
+        self.top_nodes = [n for n,d in G.in_degree_iter() if d == 0]
+        self.terminal_nodes = [n for n,d in G.out_degree_iter() if d == 0]
 
         self.nbunch = None
 
@@ -60,7 +60,7 @@ class SewerNet(object):
         #run the hydrologic calculations on sewers meeting filter criteria
         nbunch = set(filtered_nodes)
         self.nbunch = nbunch
-        self.G = hydrologic_calcs_on_sewers(self.G, nbunch, self.top_nodes)
+        self.G = hydrologic_calcs_on_sewers(self.G, nbunch)
 
     def conduits(self):
         """
@@ -98,32 +98,28 @@ def add_boundary_conditions(G, data):
                     print 'adding data to {}'.format(fid)
                     d.update(data[fid])
 
-def hydrologic_calcs_on_sewers(G, nbunch=None, top_nodes=None):
+def hydrologic_calcs_on_sewers(G, nbunch=None):
     G1 = G.copy()
-
-    if top_nodes is None:
-        top_nodes = [n for n in G1.nodes_iter() if G1.in_degree(n) == 0]
 
     for u,v,d in G1.edges_iter(data=True, nbunch=nbunch):
 
-        #collect the upstream nodes, sum area
-        up_nodes = nx.ancestors(G1, u) | set({u}) #upstream nodes
-        acres = G1.node[u]['total_area_ac']
-        acres *= d.get('flow_split_frac', 1) #split the area if necessary
+        #grab the upstream node's total and direct area,
+        #and apply any flow split fraction
+        split_frac = d.get('flow_split_frac', 1)
+        acres =     (G1.node[u]['total_area_ac'] * split_frac)
+        direct_ac = (G1.node[u].get('Shape_Area',0) / 43560.0) * split_frac
 
-        #find path and calculate tc (sum trave)
-        #tc_path = find_tc_path(G1, u, 'travel_time', top_nodes)
-        tc_path = find_tc_path_by_walking(G1, u)
-        # tc = sum([G1[u][v]['travel_time'] for u,v in pairwise(tc_path)]) + 3.0
-        # tc += sum([G.node[n].get('travel_time', 0) for n in tc_path]) #boundary tc
+        #grab the tc and path from the upstream node
+        tc_path = G1.node[u]['tc_path']
         tc = G1.node[u]['tc']
         intensity = philly_storm_intensity(tc) #in/hr
         peakQ = 0.85 * intensity * acres # q = C*I*A, (cfs)
 
         #store values in the edge data (sewer reach)
         d['upstream_area_ac'] = acres
+        d['direct_area_ac'] = direct_ac
         d['tc_path'] = tc_path
-        d['tc'] = tc #+ d['travel_time']
+        d['tc'] = tc
         d['intensity'] = intensity
         d['peakQ'] = peakQ
 
@@ -134,7 +130,6 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, top_nodes=None):
         #retain networkx up/down node information
         d['up_node'] = u
         d['dn_node'] = v
-        # d['up_fids'] = get_node_values(G1, up_nodes, 'FACILITYID')
 
     return G1
 
@@ -163,6 +158,10 @@ def accumulate_travel_time(G):
     loop through each node and accumulate the travel time with its immediate
     upstream nodes and edges. where there are multiple precedessors, choose the
     upstream node + edge pair with the maximum travel time.
+
+    while traversing the topologically sorted network, accumulate the list of
+    upstream tc nodes for each subsequent node. This builds the tc_path param so
+    we don't have to do any further tc computation.
     """
 
     G1 = G.copy()
@@ -173,103 +172,71 @@ def accumulate_travel_time(G):
             #top of shed node, won't overwrite
             #boundary condition with tc param already set
             d['tc'] = 3 #minutes
+            d['tc_path'] = n #to hold list of tc path nodes in descendants
 
     for n in nx.topological_sort(G1):
         #the current node tc
         tc = sum(get_node_values(G1, [n], ['tc']))
+        path = get_node_values(G1, [n], ['tc_path']) #this is a copy, right?
 
-        #add the max travel time of any upstream edge + node pair
-        upstream_tc_options = [G1[p][n]['travel_time'] + G1.node[p]['tc']
-                               for p in G1.predecessors(n)]
+        #create 2d array with the tc of any upstream edge + node pair, and the
+        #precedessors' list of tc_path member nodes
+        upstream_tc_options = [(G1[p][n]['travel_time'] +
+                                G1.node[p]['tc'],
+                                G1.node[p]['tc_path'])
+                                for p in G1.predecessors(n)]
+
         if len(upstream_tc_options) > 0:
-            tc += max(upstream_tc_options)
+            #2d array gets sorted by tc, descending
+            upstream_tc_options.sort(reverse=True)
+            tc += upstream_tc_options[0][0]
+            path += upstream_tc_options[0][1] + [n]
+            # path.append(tc_nodes)
 
         G1.node[n]['tc'] = tc
+        G1.node[n]['tc_path'] = path
 
     return G1
 
-def find_tc_path_by_walking(G, start_node):
+
+def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
     """
-    starting at a node, walk up the predecessors, always choosing the path
-    with the maximum travel time at each junction of multiple sewers.
-
-    This is slow for some reason. :(
-
-    TRY LOOKING FOR all_simple_paths. FIRST CHECK CONNECTIVITY
-
-    """
-
-    G1 = G.copy()
-    preds = G1.predecessors(start_node)
-    path = []
-
-    while len(preds) > 0:
-
-        #list of tuples (tc, predecessor)
-        pred_tcs = [(G1.node[p]['tc'], p) for p in  preds]
-        pred_tcs.sort(reverse=True) #max tc at begining
-        tc, selected_node = pred_tcs[0]
-        path.append(selected_node)
-
-        #restart search at the selected_node
-        preds = G1.predecessors(selected_node)
-
-    return path
-
-def find_tc_path(G, start_node=None, parameter='length', top_nodes=None):
-    """
-    find the path with the largest accumulation of the parameter (e.g. travel
-    time). Return a list of nodes along this path
-    """
-
-    if start_node is None:
-        start_node = nx.topological_sort(G, reverse=True)[0]
-
-    #subset graph to all upstream
-    up_nodes = nx.ancestors(G, start_node) | set({start_node})
-    G2 = nx.subgraph(G, up_nodes)
-
-    #if top_nodes is None:
-    top_nodes = [n for n in G2.nodes_iter() if G2.in_degree(n) == 0]
-
-
-    tc_path, longest_len = [], 0
-    for n in top_nodes:
-        if n in G2:
-            for path in nx.all_simple_paths(G2, source=n, target=start_node):
-                path_len = sum([G2[u][v][parameter] for u,v in pairwise(path)])
-
-                #add any added boundary conditions on nodes
-                path_len += sum([G2.node[m].get(parameter, 0) for m in path])
-
-                if path_len > longest_len:
-                    tc_path = path
-                    longest_len = path_len
-
-    return tc_path
-
-def analyze_downstream(G, nbunch=None, in_place=False):
-    """
+    Assign terminal nodes to each node in the network, then find the limiting
+    sewer reach between each node and its terminal node. 
     """
     if not in_place:
         G1 = G.copy()
     else:
         G1 = G
+    if terminal_nodes is None:
+        # terminal_nodes = [nx.topological_sort(G1, reverse=True, nbunch=nbunch)[0]]
+        terminal_nodes = [n for n,d in G1.out_degree_iter() if d == 0]
 
-    start_node = nx.topological_sort(G1, reverse=True, nbunch=nbunch)[0]
+    #assign terminal node(s) to each node
+    print 'finding terminal nodes...'
+    for n in terminal_nodes:
+        for a in nx.ancestors(G1, n) | set({n}):
+            if 'terminal_nodes' in G1.node[a]:
+                G.node[a]['terminal_nodes'] += [n]
+            else:
+                G.node[a]['terminal_nodes'] = [n]
+
+    print 'finding limiting sewers...'
     for u,v,d in G1.edges_iter(data=True,nbunch=nbunch):
         descendants = []
         rates = []
-        for path in nx.all_simple_paths(G1, source=v, target=start_node):
+        down_paths = [p for n in G.node[v]['terminal_nodes']
+                        for p in nx.all_simple_paths(G, source=v, target=n)]
 
-            #descendants = nx.descendants(G1, u)
+        # for path in nx.all_simple_paths(G1, source=v, target=start_node):
+        for path in down_paths:
+
             descendants += [G1[u][v] for u,v in pairwise(path)]
             rates += [(e['phs_rate'], e['FACILITYID']) for e in descendants
                       if 'phs_rate' in e]
 
         if descendants:
             sorted_rates = sorted(rates)
-            # d['descendants'] = [e['FACILITYID'] for e in descendants]
             d['limiting_rate'], d['limiting_sewer'] = sorted_rates[0]
 
     return G1
@@ -279,8 +246,6 @@ def analyze_flow_splits(G):
     """
     loop through nodes, find nodes with more than 1 outflow (flow split)
     tag the immediately downstream sewers as flow splitters
-    find the resolving node by finding the closest downstream node with
-    mulitple inflows and more than one path from the splitter to resolver
     """
 
     G1 = G.copy()
@@ -301,8 +266,5 @@ def analyze_flow_splits(G):
             if G1.in_degree(u)==0:
                 G1[u][v]['flow_split'] = 'summet'
             G1[u][v]['flow_split_frac'] = G1[u][v]['capacity'] / total_capacity
-
-
-
 
     return G1
