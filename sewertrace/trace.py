@@ -194,7 +194,7 @@ def accumulate_travel_time(G):
             # path.append(tc_nodes)
 
         G1.node[n]['tc'] = tc
-        G1.node[n]['tc_path'] = path
+        G1.node[n]['tc_path'] = [n] #path
 
     return G1
 
@@ -202,14 +202,13 @@ def accumulate_travel_time(G):
 def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
     """
     Assign terminal nodes to each node in the network, then find the limiting
-    sewer reach between each node and its terminal node. 
+    sewer reach between each node and its terminal node.
     """
     if not in_place:
         G1 = G.copy()
     else:
         G1 = G
     if terminal_nodes is None:
-        # terminal_nodes = [nx.topological_sort(G1, reverse=True, nbunch=nbunch)[0]]
         terminal_nodes = [n for n,d in G1.out_degree_iter() if d == 0]
 
     #assign terminal node(s) to each node
@@ -222,22 +221,27 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
                 G.node[a]['terminal_nodes'] = [n]
 
     print 'finding limiting sewers...'
-    for u,v,d in G1.edges_iter(data=True,nbunch=nbunch):
-        descendants = []
-        rates = []
-        down_paths = [p for n in G.node[v]['terminal_nodes']
-                        for p in nx.all_simple_paths(G, source=v, target=n)]
+    for tn in terminal_nodes:
+        G1.node[tn]['limiting_rate'] = 9999
+        G1.node[tn]['limiting_sewer'] = None
 
-        # for path in nx.all_simple_paths(G1, source=v, target=start_node):
-        for path in down_paths:
+        for p in G1.predecessors(tn):
+            G1[p][tn]['limiting_rate'] = G1[p][tn]['phs_rate']
 
-            descendants += [G1[u][v] for u,v in pairwise(path)]
-            rates += [(e['phs_rate'], e['FACILITYID']) for e in descendants
-                      if 'phs_rate' in e]
+    for n in nx.topological_sort(G1, reverse=True):
+        dn_node_rates = [(G1.node[s]['limiting_rate'],
+                          G1.node[s]['limiting_sewer']) for s in G1.successors(n)]
+        dn_edge_rates = [(G1[n][s]['phs_rate'],
+                          G1[n][s]['FACILITYID']) for s in G1.successors(n)]
+        dn_rates = dn_node_rates + dn_edge_rates
 
-        if descendants:
-            sorted_rates = sorted(rates)
-            d['limiting_rate'], d['limiting_sewer'] = sorted_rates[0]
+        if len(dn_rates) > 0:
+            sorted_rates = sorted(dn_rates)
+            rate, fid = sorted_rates[0]
+            G1.node[n]['limiting_rate'] = rate
+            G1.node[n]['limiting_sewer'] = fid
+            G1[n][s]['limiting_rate'] = rate
+            G1[n][s]['limiting_sewer'] = fid
 
     return G1
 
