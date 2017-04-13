@@ -59,6 +59,16 @@ def clean_dict(mydict, keep_keys=None, rm_keys=None):
             if k in rm_keys:
                 del mydict[k]
 
+def round_shapefile_node_keys(G):
+    """
+    nodes read in via nx.read_shp() are labeled as tuples representing the
+    coordinates of each node in the shapefile. In order to join nodes who are
+    very close (but not exactly the same), round the labels to the nearest
+    integer. This works well for state plane coordinate systems.
+    """
+    mapping = {n:tuple([round(i, 2) for i in n]) for n in G.nodes_iter()}
+    return nx.relabel_nodes(G, mapping)
+
 def clean_network_data(G):
     """
     remove unecessary fields from DataConv from the network, remove isolated

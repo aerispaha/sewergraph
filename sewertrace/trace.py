@@ -1,7 +1,7 @@
 import networkx as nx
 import pandas as pd
 from helpers import (pairwise, visualize, open_file,
-                     clean_network_data, get_node_values)
+                     clean_network_data, get_node_values, round_shapefile_node_keys)
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
 from resolve_data import resolve_geom_slope_gaps
 import os
@@ -41,6 +41,7 @@ class SewerNet(object):
 
         #clean up the network (rm unecessary DataConv fields, isolated nodes)
         G = clean_network_data(G)
+        G = round_shapefile_node_keys(G)
         G = nx.convert_node_labels_to_integers(G)
         G = resolve_geom_slope_gaps(G)
 

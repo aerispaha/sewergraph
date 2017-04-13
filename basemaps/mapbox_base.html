@@ -83,15 +83,21 @@ map.on('load', function() {
           'line-color': {
               property: 'capacity_fraction',
               stops: [
+                // [5, '#64bab4'],
+                // [50, '#4dbc49'],
+                // [100, '#8764ba'],
+                // [300  , '#cc5151'],
+                // [500, '#ea30e4']
                 [2, '#343332'],
                 [50, '#64bab4'],
-                [200  , '#cc0000'],
+                [200  ,'#c94242'],//'#cc0000'],
                 [500, '#ea30e4']
               ]
         },
           'line-opacity': 0.75,
   	      'line-width':3,
-      }
+      },
+      'filter':["!has", "flow_split"],
 	});
   map.addLayer({
         'id': 'sheds',
@@ -109,9 +115,18 @@ map.on('load', function() {
             'type': 'line',
             "source": "sewer-data",
             'paint': {
-                'line-color': "#f4e216",//"#8384a4",
+                'line-color': {
+                    property: 'capacity_fraction',
+                    stops: [
+                      [2, '#343332'],
+                      [50, '#64bab4'],
+                      [200  , '#cc0000'],
+                      [500, '#ea30e4']
+                    ]
+              },
                 'line-opacity': 0.9,
-    			'line-width':6,
+    			      'line-width':8,
+                "line-dasharray": [0.5, 0.5],
             },
     		'filter':["==", "flow_split", "Y"],
         });
@@ -167,7 +182,7 @@ map.on('load', function() {
 		var y = e.point.y;
 		var clickbox = [[x-5, y-5], [x+5, y+5]]
 
-        var features = map.queryRenderedFeatures(clickbox, { layers: ['sewer'] });
+        var features = map.queryRenderedFeatures(clickbox, { layers: ['sewer', 'sewer-splits'] });
         if (!features.length) {
 			      map.setFilter("sewer-hover", ["==", "FACILITYID", ""]);
             map.setFilter("sewer-tc", ["in", "dn_node", ""]);
