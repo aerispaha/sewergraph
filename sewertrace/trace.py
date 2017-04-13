@@ -7,35 +7,57 @@ from resolve_data import resolve_slope_gaps,resolve_geom_slope_gaps
 import os
 
 class SewerNet(object):
-    def __init__(self, shapefile, boundary_conditions=None):
+    def __init__(self, shapefile, boundary_conditions=None, run=True):
+
+        """
+        Sewer network data wrapper that performs hydraulic and hydrologic (H&H)
+        calculations on each sewer segment. H&H calculations use the Rational
+        Method and the Manning equation to compute peak runoff and sewer
+        capacity.
+
+        Parameters
+        ----------
+        shapefile : string
+            path to directory containing a shapefile(s) of spatial sewer
+            data and manhole data (or other point spatial data) that connect
+            sewers and contain a Shape_Area (square feet) field representing the drainage
+            area attributed to that node. The Shape_Area field may be obtained
+            by creating Theissen polygons around each point and joining the
+            polygons' Shape_Area to the manhole attributes.
+
+        boundary_conditions : dict of dicts
+            additional data to join to point shapefiles based on a GUID
+            (FACILITYID) key. The value of each GUID key is another dict
+            containing the data that will be joined to the matching node.
+            additional_area and travel_time are currently supported keys.
+
+        run : bool, default True
+            whether the 'hydrologic_calcs_on_sewers' and 'analyze_downstream'
+            should be run upon instantiation.
+        """
 
         self.shapefile_path = shapefile
-        print 'reading shapefile...'
         G = nx.read_shp(shapefile)
 
         #clean up the network (rm unecessary DataConv fields, isolated nodes)
-        print 'resolving gaps...'
         G = clean_network_data(G)
         G = nx.convert_node_labels_to_integers(G)
         G = resolve_geom_slope_gaps(G)
 
         #perform travel time and capacity calcs
-        print 'hhcacls...'
         G = hhcalcs_on_network(G)
 
         #id flow split sewers and calculate split fractions
-        print 'analyzing flow splits...'
         G = analyze_flow_splits(G)
 
         if boundary_conditions is not None:
-            print 'adding boundary conditions...'
             add_boundary_conditions(G, boundary_conditions)
         self.boundary_conditions = boundary_conditions
 
-        print 'accumulating drainage areas...'
+        #accumulate drainage areas
         G = accumulate_area(G)
 
-        print 'accumulating travel times...'
+        #accumulating travel times
         G = accumulate_travel_time(G)
         self.G = G
 
@@ -44,10 +66,14 @@ class SewerNet(object):
 
         self.nbunch = None
 
+        if run:
+            self.G = hydrologic_calcs_on_sewers(self.G)
+            self.G = analyze_downstream(self.G)
+
     def run_hydrology(self, nbunch=None, catchment_min=0.0, pipe_types=None):
 
         filtered_nodes = []
-        print 'running hydrologic calcs...'
+        #print 'running hydrologic calcs...'
         #filter nodes given catchment_min and pipe_types
         for u,v,d, in self.G.edges_iter(data=True, nbunch=nbunch):
             if self.G.node[u]['total_area_ac'] >= catchment_min:
@@ -72,7 +98,7 @@ class SewerNet(object):
         cols = ['LABEL', 'Slope', 'capacity', 'peakQ','tc', 'intensity',
                 'upstream_area_ac', 'phs_rate','limiting_rate','limiting_sewer',
                 'Diameter','Height', 'Width', 'Year_Insta', 'FACILITYID',
-                'Shape_Leng']
+                'Shape_Leng', 'PIPE_TYPE']
 
         return df[cols]
 
@@ -95,7 +121,7 @@ def add_boundary_conditions(G, data):
         if 'FACILITYID' in d:
             for fid in data.keys():
                 if fid in d['FACILITYID']:
-                    print 'adding data to {}'.format(fid)
+                    #print 'adding data to {}'.format(fid)
                     d.update(data[fid])
 
 def hydrologic_calcs_on_sewers(G, nbunch=None):
@@ -212,7 +238,7 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
         terminal_nodes = [n for n,d in G1.out_degree_iter() if d == 0]
 
     #assign terminal node(s) to each node
-    print 'finding terminal nodes...'
+    #print 'finding terminal nodes...'
     for n in terminal_nodes:
         for a in nx.ancestors(G1, n) | set({n}):
             if 'terminal_nodes' in G1.node[a]:
@@ -220,7 +246,7 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
             else:
                 G.node[a]['terminal_nodes'] = [n]
 
-    print 'finding limiting sewers...'
+    #print 'finding limiting sewers...'
     for tn in terminal_nodes:
         G1.node[tn]['limiting_rate'] = 9999
         G1.node[tn]['limiting_sewer'] = None

@@ -61,7 +61,7 @@ def mannings_velocity(diameter, slope, height=None, width=None, shape="CIR", dat
 		n = getMannings(shape, diameter)
 		V = (1.49 / n) * math.pow(Rh, 0.667) * math.pow(slope/100.0, 0.5)
 	except:
-		print 'cannot compute, assume 2fps, {}'.format(data['FACILITYID'])
+		#print 'cannot compute, assume 2fps, {}'.format(data['FACILITYID'])
 		V = 2.0
 
 	return V
