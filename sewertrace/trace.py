@@ -3,7 +3,7 @@ import pandas as pd
 from helpers import (pairwise, visualize, open_file,
                      clean_network_data, get_node_values)
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
-from resolve_data import resolve_slope_gaps,resolve_geom_slope_gaps
+from resolve_data import resolve_geom_slope_gaps
 import os
 
 class SewerNet(object):
@@ -220,7 +220,7 @@ def accumulate_travel_time(G):
             # path.append(tc_nodes)
 
         G1.node[n]['tc'] = tc
-        G1.node[n]['tc_path'] = [n] #path
+        G1.node[n]['tc_path'] = path
 
     return G1
 
