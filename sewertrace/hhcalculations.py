@@ -22,10 +22,10 @@ def hhcalcs_on_network(G):
 		#velocity
 		# diameter = max( data['Diameter'], data['Height'])
 		if 'calculated_slope' in data:
-			slope = max(data['calculated_slope'], 0.2)
+			slope = max(data['calculated_slope'], 0.01)
 			data['Slope'] = slope
 		else:
-			slope = max(data['Slope'], 0.2)
+			slope = max(data['Slope'], 0.1)
 		data['slope_used_in_calcs'] = slope
 
 		height, width = data['Height'], data['Width']

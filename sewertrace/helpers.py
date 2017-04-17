@@ -81,7 +81,7 @@ def clean_network_data(G):
 
     for u,v,d in G1.edges_iter(data=True):
         node_keeper_keys = ['X_Coord', 'Y_Coord','total_area_ac',
-                            'Shape_Area', 'FACILITYID', 'ELEVATION_']
+                            'Shape_Area', 'FACILITYID', 'ELEVATION_', 'ELEVATIONI']
         edge_keeper_keys = ['Diameter', 'Height','Width', 'FACILITYID','Json',
                             'Slope', 'Shape_Leng', 'Year_Insta', 'PIPESHAPE',
                             'PIPE_TYPE', 'STICKERLIN', 'LABEL','ELEVATION_',

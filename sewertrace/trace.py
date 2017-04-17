@@ -25,7 +25,7 @@ class SewerNet(object):
             by creating Theissen polygons around each point and joining the
             polygons' Shape_Area to the manhole attributes.
 
-        boundary_conditions : dict of dicts
+        boundary_conditions : dict of dicts, default None
             additional data to join to point shapefiles based on a GUID
             (FACILITYID) key. The value of each GUID key is another dict
             containing the data that will be joined to the matching node.
@@ -102,6 +102,15 @@ class SewerNet(object):
                 'Shape_Leng', 'PIPE_TYPE']
 
         return df[cols]
+
+    def nodes(self):
+        """
+        return the networkx network nodes as a Pandas Dataframe
+        """
+        fids = [d['FACILITYID'] for u,v,d in self.G.edges(data=True)]
+        data = [d for u,v,d in self.G.edges(data=True)]
+        df = pd.DataFrame(data=data, index=fids)
+        return df
 
     def to_map(self, filename=None, startfile=True):
 
@@ -239,7 +248,6 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
         terminal_nodes = [n for n,d in G1.out_degree_iter() if d == 0]
 
     #assign terminal node(s) to each node
-    #print 'finding terminal nodes...'
     for n in terminal_nodes:
         for a in nx.ancestors(G1, n) | set({n}):
             if 'terminal_nodes' in G1.node[a]:
@@ -247,7 +255,7 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
             else:
                 G.node[a]['terminal_nodes'] = [n]
 
-    #print 'finding limiting sewers...'
+    #find limiting sewers
     for tn in terminal_nodes:
         G1.node[tn]['limiting_rate'] = 9999
         G1.node[tn]['limiting_sewer'] = None
