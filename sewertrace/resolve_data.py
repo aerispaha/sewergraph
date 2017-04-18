@@ -186,37 +186,37 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
                     length = G1[p][n]['Shape_Leng']
                     G1.node[p]['invert_trusted'] = invert + (slope * length)
 
-    for n in list(reversed(topo_sorted_nodes)):
-        invert = None
-
-        #assign the trusted invert
-        if data_key in G1.node[n] and G1.node[n][data_key] != null_val:
-            invert = G1.node[n][data_key]
-
-        if 'invert_trusted' in G1.node[n]:
-            invert = G1.node[n]['invert_trusted']
-
-        if invert is not None:
-            for s in G1.successors(n):
-                if G1[n][s]['Slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[s]:
-                    #trusted slope, can calculate trusted invert
-                    slope = G1[n][s]['Slope'] / 100.0
-                    lenght = G1[n][s]['Shape_Leng']
-                    G1.node[n]['invert_trusted'] = invert - (slope * length)
+    # for n in list(reversed(topo_sorted_nodes)):
+    #     invert = None
+    #
+    #     #assign the trusted invert
+    #     if data_key in G1.node[n] and G1.node[n][data_key] != null_val:
+    #         invert = G1.node[n][data_key]
+    #
+    #     if 'invert_trusted' in G1.node[n]:
+    #         invert = G1.node[n]['invert_trusted']
+    #
+    #     if invert is not None:
+    #         for s in G1.successors(n):
+    #             if G1[n][s]['Slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[s]:
+    #                 #trusted slope, can calculate trusted invert
+    #                 slope = G1[n][s]['Slope'] / 100.0
+    #                 lenght = G1[n][s]['Shape_Leng']
+    #                 G1.node[n]['invert_trusted'] = invert - (slope * length)
 
     return G1
 
 def elevation_change(G, s, t):
         """elevation difference between two nodes in graph, G"""
-        l = G[s][t]['Shape_Leng']
-        s = G[s][t]['slope_used_in_calcs']
-        delta = (s/100.0) * l
+        length = G[s][t]['Shape_Leng']
+        slope = G[s][t]['slope_used_in_calcs']
+        delta = (slope / 100.0) * length
         return delta
 
-def assign_inverts(G):
+def assign_inverts(G, data_key='ELEVATIONI'):
 
     """
-    Assign a invert values for each node in the graph, G by
+    Assign invert values for each node in the graph, G by
     walking up the network and accumulating elevation based on
     sewer slope and length
     """
@@ -240,10 +240,11 @@ def assign_inverts(G):
             for n in topo_sorted_nodes[i:]:
                 for p in G1.predecessors(n):
                     delta += elevation_change(G1, p, n)
-                    if 'ELEVATIONI' in G1.node[p] and G1.node[p]['ELEVATIONI'] > 0:
+                    #if 'ELEVATIONI' in G1.node[p] and G1.node[p]['ELEVATIONI'] > 0:
+                    if 'invert_trusted' in G1.node[p]:
 
-                        G1.node[tn]['invert'] = G1.node[p]['ELEVATIONI'] - delta
-                        print G1.node[p]['ELEVATIONI'], delta
+                        G1.node[tn]['invert'] = G1.node[p]['invert_trusted'] - delta
+                        # print G1.node[p]['ELEVATIONI'], delta
                         break
                 if G1.node[tn]['invert'] != 0:
                     break
@@ -255,11 +256,13 @@ def assign_inverts(G):
             el_0 = G1.node[n]['invert']
             el_2 = el_0 + elevation_change(G1,p,n)
 
-            if G1.node[n].get('ELEVATIONI', 0) != 0:
-                el_0 = G1.node[n]['ELEVATIONI']
+            #fill invert values where nodes already have trusted invert vals
+            if G1.node[n].get('invert_trusted', 0) != 0:
+                el_0 = G1.node[n]['invert_trusted']
                 G.node[n]['invert'] = el_0
-            if G1.node[p].get('ELEVATIONI', 0) != 0:
-                el_2 = G1.node[p]['ELEVATIONI']
+            if G1.node[p].get('invert_trusted', 0) != 0:
+                el_2 = G1.node[p]['invert_trusted']
+
 
             G1.node[p]['invert'] = el_2
 

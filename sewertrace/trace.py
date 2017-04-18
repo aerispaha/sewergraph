@@ -42,7 +42,7 @@ class SewerNet(object):
         #clean up the network (rm unecessary DataConv fields, isolated nodes)
         G = clean_network_data(G)
         G = round_shapefile_node_keys(G)
-        G = nx.convert_node_labels_to_integers(G)
+        G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
         G = resolve_geom_slope_gaps(G)
 
         #perform travel time and capacity calcs
@@ -99,7 +99,7 @@ class SewerNet(object):
         cols = ['LABEL', 'Slope', 'capacity', 'peakQ','tc', 'intensity',
                 'upstream_area_ac', 'phs_rate','limiting_rate','limiting_sewer',
                 'Diameter','Height', 'Width', 'Year_Insta', 'FACILITYID',
-                'Shape_Leng', 'PIPE_TYPE']
+                'Shape_Leng', 'PIPE_TYPE', 'up_node', 'dn_node']
 
         return df[cols]
 
@@ -107,9 +107,9 @@ class SewerNet(object):
         """
         return the networkx network nodes as a Pandas Dataframe
         """
-        fids = [d['FACILITYID'] for u,v,d in self.G.edges(data=True)]
-        data = [d for u,v,d in self.G.edges(data=True)]
-        df = pd.DataFrame(data=data, index=fids)
+        # fids = [d['FACILITYID'] for u,v,d in self.G.edges(data=True)]
+        data = [d for n,d in self.G.nodes(data=True)]
+        df = pd.DataFrame(data=data, index=self.G.nodes())
         return df
 
     def to_map(self, filename=None, startfile=True):
@@ -121,6 +121,51 @@ class SewerNet(object):
 
         if startfile:
             open_file(filename)
+
+    def to_swmm5_dataframes(self):
+        """
+        return an dict of dataframes for junctions, conduits, and coordinates
+        elements in a SWMM5 inp
+        """
+
+        #JUNCTIONS
+        df = self.nodes()
+        df['MaxDepth'] = 0
+        df['InitDepth'] = 0
+        df['SurchargeDepth'] = 0
+        df['PondedArea'] = 0
+        node_cols = ['invert', 'MaxDepth', 'InitDepth', 'SurchargeDepth', 'PondedArea']
+        junctions = df[node_cols]
+
+        #COORDINATES
+        df['x_coord'] = df.apply(lambda row: row.coords[0], axis=1)
+        df['y_coord'] = df.apply(lambda row: row.coords[1], axis=1)
+        coordinates = df[['x_coord', 'y_coord']]
+
+        #CONDUITS
+        conduits = self.conduits()
+
+        #rename duplicate FACILITYIDs
+        cols=pd.Series(conduits.index)
+        for dup in conduits.index.get_duplicates():
+            cols[conduits.index.get_loc(dup)]=[dup+'.'+str(d_idx)
+                                               if d_idx!=0 else dup
+                                               for d_idx in range(
+                                                   conduits.index.get_loc(dup).sum()
+                                                   )]
+        conduits.index=cols
+        conduits = conduits[['up_node', 'dn_node', 'Shape_Leng']]
+        conduits['ManningN'] = 0.013
+        conduits['InletOffset'] = 0
+        conduits['OutletOffset'] = 0
+        conduits['InitFlow'] = 0.0001
+        conduits['MaxFlow'] = 0
+
+        return dict(
+            conduits = conduits,
+            junctions=junctions,
+            coordinates = coordinates,
+        )
 
 def add_boundary_conditions(G, data):
     """
