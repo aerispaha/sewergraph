@@ -1,6 +1,50 @@
 from plotly.graph_objs import Figure, Scatter, Bar, Layout
 import numpy as np
 
+def plot_profile(G, path):
+
+    l = 0
+    xs = []
+    inverts = []
+    heights = []
+    rims = []
+    fids = []
+
+    for u,v,d in G.edges_iter(data=True, nbunch=path):
+
+        node = G.node[u]
+        sewer = G[u][v]
+        inverts.append(node['invert'])
+        h = max(sewer['Diameter'], sewer['Height']) / 12.0
+        heights.append(h + node['invert'])
+        rim_el = node.get('ELEVATION_', None)
+        rims.append(rim_el)
+        xs.append(l)
+        fids.append(sewer['FACILITYID'])
+        l += sewer['Shape_Leng']
+
+
+    inv_go = Scatter(
+        x = xs,
+        y = inverts,
+        name='invert',
+        text = fids,
+    )
+    h_go = Scatter(
+        x = xs,
+        y = heights,
+        name='heights'
+    )
+
+    rims_go = Scatter(
+        x = xs,
+        y = [None if r == 0 else r for r in rims],
+        name='rims',
+        connectgaps= True,
+    )
+
+    return Figure(data=[inv_go, h_go, rims_go])
+
 
 def capacity_peak_comparison_plt(df, name ='Sewers', title='Peak Flow vs Sewer Capacity'):
 

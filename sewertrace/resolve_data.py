@@ -23,6 +23,9 @@ def resolve_geometry(G, u, v, search_depth=5):
     geom = infer_from_dimensions(diam, h, w)
 
     while geom == None and search_depth > i:
+        #NOTE select the largest upstream sewer to prevent choosing
+        #branches dropping into larger trunks, etc. downstream sewer should
+        #almost never decrease in size.
 
         for up in G.predecessors(u):
             #avoid modeling after a downstream collector
@@ -167,7 +170,7 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
     topo_sorted_nodes = nx.topological_sort(G1, reverse=True)
 
     for n in topo_sorted_nodes:
-
+        #TRAVERSE THE TREE FROM BOTTOM TO TOP
         invert = None
 
         #assign the trusted invert
@@ -187,6 +190,8 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
                     G1.node[p]['invert_trusted'] = invert + (slope * length)
 
     # for n in list(reversed(topo_sorted_nodes)):
+    #
+    #     #TRAVERSE THE TREE FROM TOP TO BOTTOM
     #     invert = None
     #
     #     #assign the trusted invert
@@ -201,8 +206,8 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
     #             if G1[n][s]['Slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[s]:
     #                 #trusted slope, can calculate trusted invert
     #                 slope = G1[n][s]['Slope'] / 100.0
-    #                 lenght = G1[n][s]['Shape_Leng']
-    #                 G1.node[n]['invert_trusted'] = invert - (slope * length)
+    #                 length = G1[n][s]['Shape_Leng']
+    #                 G1.node[s]['invert_trusted'] = invert - (slope * length)
 
     return G1
 
@@ -238,14 +243,13 @@ def assign_inverts(G, data_key='ELEVATIONI'):
             delta = 0
             #loop through sorted nodes, starting at the tn position
             for n in topo_sorted_nodes[i:]:
-                for p in G1.predecessors(n):
-                    delta += elevation_change(G1, p, n)
-                    #if 'ELEVATIONI' in G1.node[p] and G1.node[p]['ELEVATIONI'] > 0:
-                    if 'invert_trusted' in G1.node[p]:
-
-                        G1.node[tn]['invert'] = G1.node[p]['invert_trusted'] - delta
-                        # print G1.node[p]['ELEVATIONI'], delta
+                #depth first search to nearest node with trusted elevation data
+                for u,v,direction in nx.edge_dfs(G1, n, 'reverse'):
+                    delta += elevation_change(G1, u, v)
+                    if 'invert_trusted' in G1.node[u]:
+                        G1.node[tn]['invert'] = G1.node[u]['invert_trusted'] - delta
                         break
+
                 if G1.node[tn]['invert'] != 0:
                     break
 

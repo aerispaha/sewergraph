@@ -96,12 +96,8 @@ class SewerNet(object):
         fids = [d['FACILITYID'] for u,v,d in self.G.edges(data=True)]
         data = [d for u,v,d in self.G.edges(data=True)]
         df = pd.DataFrame(data=data, index=fids)
-        cols = ['LABEL', 'Slope', 'capacity', 'peakQ','tc', 'intensity',
-                'upstream_area_ac', 'phs_rate','limiting_rate','limiting_sewer',
-                'Diameter','Height', 'Width', 'Year_Insta', 'FACILITYID',
-                'Shape_Leng', 'PIPE_TYPE', 'up_node', 'dn_node']
-
-        return df[cols]
+        
+        return df
 
     def nodes(self):
         """
@@ -189,12 +185,16 @@ def hydrologic_calcs_on_sewers(G, nbunch=None):
         split_frac = d.get('flow_split_frac', 1)
         acres =     (G1.node[u]['total_area_ac'] * split_frac)
         direct_ac = (G1.node[u].get('Shape_Area',0) / 43560.0) * split_frac
+        C =  G1.node[u].get('runoff_coefficient', 0.85)
+        # if C != 0.85:
+        #     print 'coool'
+        #     break
 
         #grab the tc and path from the upstream node
         tc_path = G1.node[u]['tc_path']
         tc = G1.node[u]['tc']
         intensity = philly_storm_intensity(tc) #in/hr
-        peakQ = 0.85 * intensity * acres # q = C*I*A, (cfs)
+        peakQ = C * intensity * acres # q = C*I*A, (cfs)
 
         #store values in the edge data (sewer reach)
         d['upstream_area_ac'] = acres
