@@ -65,6 +65,44 @@ def resolve_geometry(G, u, v, search_depth=5):
 
     return geom, diam, h, w, label, fid
 
+def dfs_edges_upstream(G, source=None):
+    """
+    Produce edges in a depth-first-search (DFS) traversing
+    upstream. Based on Networkx dfs source 
+    """
+    if source is None:
+        # produce edges for all components
+        nodes = G
+    else:
+        # produce edges for components with source
+        nodes = [source]
+    visited=set()
+    for start in nodes:
+        if start in visited:
+            continue
+        visited.add(start)
+        stack = [(iter(G.pred[start]), start)]
+        while stack:
+            parents, child = stack[-1]
+            try:
+                parent = next(parents)
+                edge = G[parent][child]
+                if edge['Slope'] != 0:
+                    print edge['FACILITYID'], 'has slope data:', edge['Slope']
+                elif len(G.pred[parent]) == 0:
+                    print edge['FACILITYID'], 'terminal'
+                else:
+                    print edge['FACILITYID']
+                    stack.append((iter(G.pred[parent]), parent))
+
+                if parent not in visited:
+                    yield parent,child
+                    visited.add(parent)
+                    #stack.append((iter(G.pred[parent]), parent))
+            except StopIteration:
+                print edge['FACILITYID'], 'terminal', [i[1] for i in stack]
+                stack.pop()
+
 def resolve_slope(G, u, v, search_depth=10):
 
     i = up_slope = dn_slope = 0
