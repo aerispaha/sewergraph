@@ -4,10 +4,12 @@ from helpers import (pairwise, visualize, open_file,
                      clean_network_data, get_node_values, round_shapefile_node_keys)
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
 from resolve_data import resolve_geom_slope_gaps
+from kpi import SewerShedKPI
 import os
 
 class SewerNet(object):
-    def __init__(self, shapefile, boundary_conditions=None, run=True):
+    def __init__(self, shapefile, boundary_conditions=None, run=True,
+                 return_period=0):
 
         """
         Sewer network data wrapper that performs hydraulic and hydrologic (H&H)
@@ -68,8 +70,10 @@ class SewerNet(object):
         self.nbunch = None
 
         if run:
-            self.G = hydrologic_calcs_on_sewers(self.G)
+            self.G = hydrologic_calcs_on_sewers(self.G, return_period=return_period)
             self.G = analyze_downstream(self.G)
+
+        self.kpi = SewerShedKPI(self)
 
     def run_hydrology(self, nbunch=None, catchment_min=0.0, pipe_types=None):
 
@@ -96,7 +100,7 @@ class SewerNet(object):
         fids = [d['FACILITYID'] for u,v,d in self.G.edges(data=True)]
         data = [d for u,v,d in self.G.edges(data=True)]
         df = pd.DataFrame(data=data, index=fids)
-        
+
         return df
 
     def nodes(self):
@@ -175,7 +179,7 @@ def add_boundary_conditions(G, data):
                     #print 'adding data to {}'.format(fid)
                     d.update(data[fid])
 
-def hydrologic_calcs_on_sewers(G, nbunch=None):
+def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
     G1 = G.copy()
 
     for u,v,d in G1.edges_iter(data=True, nbunch=nbunch):
@@ -193,7 +197,7 @@ def hydrologic_calcs_on_sewers(G, nbunch=None):
         #grab the tc and path from the upstream node
         tc_path = G1.node[u]['tc_path']
         tc = G1.node[u]['tc']
-        intensity = philly_storm_intensity(tc) #in/hr
+        intensity = philly_storm_intensity(tc, return_period) #in/hr
         peakQ = C * intensity * acres # q = C*I*A, (cfs)
 
         #store values in the edge data (sewer reach)
@@ -205,8 +209,8 @@ def hydrologic_calcs_on_sewers(G, nbunch=None):
         d['peakQ'] = peakQ
 
         #compute the capacity fraction (hack prevent div/0)
-        d['capacity_fraction'] = round(peakQ / max(d['capacity'], 1.0)*100)
-        d['phs_rate'] = d['capacity'] / max(acres, 0.1) #prevent div/0 (FIX!!)
+        d['capacity_fraction'] = peakQ / max(d['capacity'], 1.0)
+        d['capacity_per_ac'] = d['capacity'] / max(acres, 0.1) #prevent div/0 (FIX!!)
 
         #retain networkx up/down node information
         d['up_node'] = u
@@ -218,20 +222,21 @@ def accumulate_area(G):
 
     """
     loop through each node and accumulate area with its immediate
-    upstream nodes. where there's a split, apply the split fraction to
-    downstream edges.
+    upstream nodes. where there's a flow split, apply the split fraction to
+    coded in the upstream edge (based on relative sewer capacity).
     """
     G1 = G.copy()
 
     for n in nx.topological_sort(G1):
         area = sum(get_node_values(G1, [n], ['Shape_Area', 'additional_area']))
         area = area / 43560.0 #to acres
+
         for p in G1.predecessors(n):
-            area += G1.node[p]['total_area_ac']
-            if 'flow_split_frac' in G1[p][n]:
-                area *= G1[p][n]['flow_split_frac']
+            pred = G1.node[p] #upstream node
+            area += pred['total_area_ac'] * G1[p][n].get('flow_split_frac', 1)
 
         G1.node[n]['total_area_ac'] = area
+
     return G1
 
 def accumulate_travel_time(G):
@@ -296,9 +301,9 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
     for n in terminal_nodes:
         for a in nx.ancestors(G1, n) | set({n}):
             if 'terminal_nodes' in G1.node[a]:
-                G.node[a]['terminal_nodes'] += [n]
+                G1.node[a]['terminal_nodes'] += [n]
             else:
-                G.node[a]['terminal_nodes'] = [n]
+                G1.node[a]['terminal_nodes'] = [n]
 
     #find limiting sewers
     for tn in terminal_nodes:
@@ -306,12 +311,12 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
         G1.node[tn]['limiting_sewer'] = None
 
         for p in G1.predecessors(tn):
-            G1[p][tn]['limiting_rate'] = G1[p][tn]['phs_rate']
+            G1[p][tn]['limiting_rate'] = G1[p][tn]['capacity_per_ac']
 
     for n in nx.topological_sort(G1, reverse=True):
         dn_node_rates = [(G1.node[s]['limiting_rate'],
                           G1.node[s]['limiting_sewer']) for s in G1.successors(n)]
-        dn_edge_rates = [(G1[n][s]['phs_rate'],
+        dn_edge_rates = [(G1[n][s]['capacity_per_ac'],
                           G1[n][s]['FACILITYID']) for s in G1.successors(n)]
         dn_rates = dn_node_rates + dn_edge_rates
 
@@ -320,8 +325,14 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
             rate, fid = sorted_rates[0]
             G1.node[n]['limiting_rate'] = rate
             G1.node[n]['limiting_sewer'] = fid
-            G1[n][s]['limiting_rate'] = rate
-            G1[n][s]['limiting_sewer'] = fid
+            for s in G1.successors(n):
+                G1[n][s]['limiting_rate'] = rate
+                G1[n][s]['limiting_sewer'] = fid
+
+                #BUG this isn't assigning the right limiting sewer to sewers
+                #right at the split
+
+
 
     return G1
 
@@ -349,6 +360,7 @@ def analyze_flow_splits(G):
             G1[u][v]['flow_split'] = 'Y'
             if G1.in_degree(u)==0:
                 G1[u][v]['flow_split'] = 'summet'
+                G1.node[u]['flow_split'] = 'summet'
             G1[u][v]['flow_split_frac'] = G1[u][v]['capacity'] / total_capacity
 
     return G1

@@ -45,6 +45,24 @@ def get_node_values(G, nodes, parameters):
 
     return upstream_vals
 
+def subset(df, lb=None, ub=None, param='capacity_fraction',
+           sum_param='Shape_Leng'):
+
+    """
+    subset a Dataframe between the provided lowerbound and upperbound (lb, ub)
+    along the given parameter. optionally return a scalar sum of data within the
+    sum_param
+    """
+    if lb is not None:
+        df = df.loc[df[param] >= lb]
+    if ub is not None:
+        df = df.loc[df[param] < ub]
+
+    if sum_param is not None:
+        return df[sum_param].sum()
+    else:
+        return df
+
 def clean_dict(mydict, keep_keys=None, rm_keys=None):
     """
     remove unwanted items in dicts

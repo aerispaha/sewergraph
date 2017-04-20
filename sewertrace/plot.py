@@ -66,7 +66,6 @@ def capacity_peak_comparison_plt(df, name ='Sewers', title='Peak Flow vs Sewer C
         text = df.LABEL.tolist(),
         name = 'One to One',
     )
-    # lims = lims.sort_values(by='phs_rate', ascending=False)
 
     layout = Layout(
         xaxis=dict(
@@ -91,42 +90,32 @@ def capacity_peak_comparison_plt(df, name ='Sewers', title='Peak Flow vs Sewer C
 
 
 def cumulative_distribution(df, name = 'Capacity Surplus',
-                            title='Sewer Capacity Surplus By Length'):
-    #capacity fraction cumulative distribution
-    df['capacity_frac'] = df.peakQ / df.capacity
-    df['capacity_deficit_frac'] = (df.capacity - df.peakQ) #/ df.capacity
-    cols = ['capacity_frac', 'capacity', 'peakQ',  'capacity_deficit_frac',
-            'upstream_area_ac', 'Shape_Leng', 'LABEL', 'Year_Insta', 'FACILITYID']
-    cap = df[cols].set_index('FACILITYID')
+                            title='Sewer Capacity Surplus By Length',
+                            parameter='capacity_fraction',
+                            cumu_param = 'Shape_Leng'
+                            ):
+
 
     #sort and accumulate length
-    #cap = cap.sort_values(by='capacity_deficit_frac', ascending=True)
-    cap = cap.sort_values(by='capacity_frac', ascending=True)
-    cap['cumu_length'] = cap.Shape_Leng.cumsum()
-    cap['cumu_length_frac'] = cap.cumu_length / cap.Shape_Leng.sum()
-    cap['cumu_miles'] = cap.cumu_length / 5280
-
-    # peak = cap[:]
-    # peak = peak.sort_values(by='peakQ')
-    # peak['cumu_length'] = peak.Shape_Leng.cumsum()
-    # peak['cumu_length_frac'] = peak.cumu_length / peak.Shape_Leng.sum()
-    # peak['cumu_miles'] = peak.cumu_length / 5280
-
+    cap = df.sort_values(by=parameter, ascending=True)
+    cap['cumulated_param'] = cap[cumu_param].cumsum()
+    cap['cumulated_param_frac'] = cap.cumulated_param / cap[cumu_param].sum()
+    cap['cumu_miles'] = cap.cumulated_param #/ 5280.0
 
     cum_cap = Scatter(
-        x = cap.capacity_frac.tolist(),
-        y = cap.cumu_length_frac.tolist(),
-        text = ['<br>'.join(x) + 'mi' for x in zip(cap.LABEL.astype(str).tolist(), cap.cumu_miles.round().astype(str).tolist())] ,
+        x = cap[parameter],
+        y = cap.cumulated_param_frac,
+        text = ['<br>'.join(x) + 'mi' for x in zip(cap.LABEL.astype(str).tolist(), cap.cumu_miles.round(1).astype(str).tolist())] ,
         name = name,
     )
     layout = Layout(
         xaxis=dict(
             #range=[-100, 100],
             range=[0, 2.5],
-            title='Capacity Fraction',
+            title=parameter,
         ),
         yaxis=dict(
-            title='Fraction of Sewer (Length)',
+            title=cumu_param + ' fraction',
         ),
         title=title,
         hovermode='closest'

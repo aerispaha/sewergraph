@@ -163,8 +163,10 @@ def assign_paths_to_data(G, data_key='ELEVATIONI', null_val=0):
 
 def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
     """
-    calculate elevations of nodes where slopes exist along edges adjacent
-    to nodes with elevation data
+    Using what trusted slope and elevation data exisits in the network,
+    extend the"trusted" elevations where possible. This is accomplished by
+    calculating new inverts upstream of nodes with trusted inverts connected
+    by edges (sewers) with trusted slope values.
     """
     G1 = G.copy()
     topo_sorted_nodes = nx.topological_sort(G1, reverse=True)

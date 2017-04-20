@@ -5,12 +5,29 @@ default_min_slope = 0.01 # percent - assumed when slope is null
 default_TC_slope = 5.0 # percent - conservatively assumed for travel time calculation when slope
 sewer_diameters = [18,21,24,27,30,36,42,48,54,60,66,72,78,84] #circular pipe sizes in inches
 
-def philly_storm_intensity(tc):
+def philly_storm_intensity(tc, return_period=0):
 	"""
 	given a tc, return the intensity of the
 	Philadelphia Water Dept design storm (in/hr)
 	"""
+	#default, "Philly" design storm
 	I = 116.0 / ( tc + 17.0)
+
+	if return_period == 1:
+		I = 100.0 / ( tc + 18.0)
+	if return_period == 2:
+		I = 131.0 / ( tc + 21.0)
+	if return_period == 5:
+		I = 171.0 / ( tc + 23.5)
+	if return_period == 10:
+		I = 214.0 / ( tc + 26.0)
+	if return_period == 25:
+		I = 252.0 / ( tc + 28.0)
+	if return_period == 50:
+		I = 289.0 / ( tc + 30.0)
+	if return_period == 100:
+		I = 325.0 / ( tc + 32.0)
+
 	return I
 
 def hhcalcs_on_network(G):

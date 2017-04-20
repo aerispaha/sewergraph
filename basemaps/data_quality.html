@@ -204,12 +204,6 @@ map.on('load', function() {
     var v = Math.round(props.velocity * 10) / 10
 
     var net = 'nodes: ' + props.up_node + ' - ' + props.dn_node
-    if (props.split_node) {
-      net = net + ' splitting node: ' + props.split_node
-    }
-    if (props.resolve_node) {
-      net = net + ' resolve node: ' + props.resolve_node
-    }
     if (props.flow_split_frac) {
       net = net + '<br>Split Frac: ' +  Math.round(props.flow_split_frac*100) + '%'
     }
@@ -228,7 +222,7 @@ map.on('load', function() {
           'Velocity: ' + v + 'fps',
           'Capacity: ' + cap + 'cfs',
           'Cap Frac: ' + cap_frac + '%',
-          'PHS Rate: ' + Math.round(props.phs_rate * 10) / 10 + 'cfs/ac',
+          'Capacity / ac: ' + Math.round(props.capacity_per_ac * 10) / 10 + 'cfs/ac',
           'PHS Shed Rate: ' + Math.round(props.limiting_rate * 10) / 10 + 'cfs/ac',
           net,
           sticker_link,
