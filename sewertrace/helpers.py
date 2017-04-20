@@ -109,6 +109,16 @@ def clean_network_data(G):
         clean_dict(G1.node[v], node_keeper_keys)
         clean_dict(d, edge_keeper_keys)
 
+        # #standardize unknowns
+        # if d['PIPESHAPE'] not in ['BOX', 'CIR', 'EGG']:
+        #     d['PIPESHAPE'] = None
+        # else:
+        #     if (d['PIPESHAPE'] == 'CIR' and d['Diameter'] == 0
+        #         and d['Height'] > 0 and d['Width'] > 0):
+        #         d
+        #         d['Diameter'], d['Height'], d['Width']
+
+
     return G1
 
 def pairwise(iterable):

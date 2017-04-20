@@ -3,46 +3,62 @@ from sewertrace import helpers
 import networkx as nx
 
 
+def preprocess_data(G):
+
+    for u,v,d in G.edges_iter(data=True):
+        geom = G[u][v]['PIPESHAPE']
+        diam = G[u][v]['Diameter']
+        h = G[u][v]['Height']
+        w = G[u][v]['Width']
+
+        #standardize unknowns
+        if geom not in ['BOX', 'CIR', 'EGG'] or sum([diam, h, w]) == 0:
+            d['PIPESHAPE'] = None
+        elif (geom == 'CIR' and diam == 0 and h > 0 and w > 0):
+            # if the geoms don't resemble a circle
+            d['PIPESHAPE'] = infer_from_dimensions(diam, h, w)
+            d['inferred_geom'] = 'Y'
+        elif (h == 0 and w == 0 and geom in ['EGG', 'BOX']):
+            # if the geoms don't resemble a box/egg
+            d['PIPESHAPE'] = infer_from_dimensions(diam, h, w)
+            d['inferred_geom'] = 'Y'
+
+
+def infer_from_dimensions(diam, h, w):
+    #see if we can infer from the attributes
+    if diam > 0:
+        return 'CIR'
+    if h >= 60 and w > 0:
+        return 'BOX'
+    if h > 0 and w > 0 and h < 60:
+        return 'EGG'
+
 def resolve_geometry(G, u, v, search_depth=5):
 
-    geom = label = fid = None
+    label = fid = None
     diam, h, w = G[u][v]['Diameter'], G[u][v]['Height'], G[u][v]['Width']
     i = 0
     up, dn = u, v
-
-    def infer_from_dimensions(diam, h, w):
-        #see if we can infer from the attributes
-        if diam > 0:
-            return 'CIR'
-        if h >= 60 and w > 0:
-            return 'BOX'
-        if h > 0 and w > 0 and h < 60:
-            return 'EGG'
-
-
     geom = infer_from_dimensions(diam, h, w)
 
-    while geom == None and search_depth > i:
-        #NOTE select the largest upstream sewer to prevent choosing
-        #branches dropping into larger trunks, etc. downstream sewer should
-        #almost never decrease in size.
+    #find upstream edges that have the attribute, select the largest as the
+    #representative sewer (most sewers will increase in size traversing downstrm)
+    up_edges_data = dfs_edges_upstream_attributes(G, u, 'PIPESHAPE')
+    if len(up_edges_data) > 0:
+        geoms = [(d['Diameter']+d['Height']+d['Width'],i,j) for i,j,d in up_edges_data]
+        geoms.sort(reverse=True)
+        _, i, j = geoms[0]
 
-        for up in G.predecessors(u):
-            #avoid modeling after a downstream collector
-            geom = G[up][u]['PIPESHAPE']
-            diam = G[up][u]['Diameter']
-            h = G[up][u]['Height']
-            w = G[up][u]['Width']
-            label = G[up][u]['LABEL']
-            fid = G[up][u]['FACILITYID']
+        geom = G[i][j]['PIPESHAPE']
+        diam = G[i][j]['Diameter']
+        h = G[i][j]['Height']
+        w = G[i][j]['Width']
+        label = G[i][j]['LABEL']
+        fid = G[i][j]['FACILITYID']
 
-            if geom not in ['BOX', 'CIR', 'EGG']:
-                geom = infer_from_dimensions(diam, h, w)
+        if geom not in ['BOX', 'CIR', 'EGG']:
+            geom = infer_from_dimensions(diam, h, w)
 
-            # print '{}. up sew ({},{}), geom={}, fid = {}'.format(i, up, u, geom, fid)
-
-        u = up
-        i +=1
 
     #search downsteam for geom info
     i = 0
@@ -65,10 +81,13 @@ def resolve_geometry(G, u, v, search_depth=5):
 
     return geom, diam, h, w, label, fid
 
-def dfs_edges_upstream(G, source=None):
+def dfs_edges_upstream_attributes_iter(G, source=None, attribute=None):
     """
-    Produce edges in a depth-first-search (DFS) traversing
-    upstream. Based on Networkx dfs source 
+    Produce edge attributes in a depth-first-search (DFS) traversing
+    upstream and terminating each search leg when finding an edge having a
+    non-null attribute.
+
+    Based on Networkx dfs source
     """
     if source is None:
         # produce edges for all components
@@ -87,21 +106,23 @@ def dfs_edges_upstream(G, source=None):
             try:
                 parent = next(parents)
                 edge = G[parent][child]
-                if edge['Slope'] != 0:
-                    print edge['FACILITYID'], 'has slope data:', edge['Slope']
-                elif len(G.pred[parent]) == 0:
-                    print edge['FACILITYID'], 'terminal'
+                if edge[attribute] is not None:
+                    #by not appending to the search stack, this reach is no
+                    #longer traversed
+                    yield (parent, child, edge)
                 else:
-                    print edge['FACILITYID']
+                    #keep searching
                     stack.append((iter(G.pred[parent]), parent))
-
                 if parent not in visited:
-                    yield parent,child
                     visited.add(parent)
-                    #stack.append((iter(G.pred[parent]), parent))
+
             except StopIteration:
-                print edge['FACILITYID'], 'terminal', [i[1] for i in stack]
+                #print edge['FACILITYID'], 'terminal', [i[1] for i in stack]
                 stack.pop()
+def dfs_edges_upstream_attributes(G, source=None, attribute=None):
+
+    res = dfs_edges_upstream_attributes_iter(G, source, attribute)
+    return list(res)
 
 def resolve_slope(G, u, v, search_depth=10):
 
@@ -138,7 +159,7 @@ def resolve_geom_slope_gaps(G, nbunch=None):
     """
 
     G1 = G.copy()
-
+    preprocess_data(G1)
 
     for u,v,d in G1.edges_iter(data=True, nbunch=nbunch):
 
