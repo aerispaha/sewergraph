@@ -17,6 +17,10 @@ class SewerShedKPI(object):
         self.shed_area_ac =  nodes.Shape_Area.sum() / 43560.0
         self.tc_min = nodes.tc.max()
 
+        #wt avg C
+        self.weighted_avg_c = [(nodes.runoff_coefficient * nodes.Shape_Area).sum()
+                               / nodes.Shape_Area.sum()]
+
         #HYDRAULIC
         df = net.conduits()
         branches = df.loc[df.PIPE_TYPE == 'BRANCH']

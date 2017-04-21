@@ -33,3 +33,12 @@ def replacements_for_capacity(G, enforced_cap_frac=1.0):
             d['replacement_capacity'] = capacity
             d['replacement_unit_cost_per_ft'] = unit_cost
             d['replacement_cost'] = total_cost
+
+        else:
+            #remove these keys if they exist 
+            d.pop('replacement_diam', None)
+            d.pop('replacement_h', None)
+            d.pop('replacement_w', None)
+            d.pop('replacement_capacity', None)
+            d.pop('replacement_unit_cost_per_ft', None)
+            d.pop('replacement_cost', None)

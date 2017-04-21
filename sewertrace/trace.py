@@ -5,6 +5,7 @@ from helpers import (pairwise, visualize, open_file,
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
 from resolve_data import resolve_geom_slope_gaps
 from kpi import SewerShedKPI
+import cost_estimates
 import os
 
 class SewerNet(object):
@@ -64,9 +65,9 @@ class SewerNet(object):
         G = accumulate_travel_time(G)
         self.G = G
 
+        #summary calculations
         self.top_nodes = [n for n,d in G.in_degree_iter() if d == 0]
         self.terminal_nodes = [n for n,d in G.out_degree_iter() if d == 0]
-
         self.nbunch = None
 
         if run:
@@ -75,23 +76,40 @@ class SewerNet(object):
 
         self.kpi = SewerShedKPI(self)
 
-    def run_hydrology(self, nbunch=None, catchment_min=0.0, pipe_types=None):
+    def estimate_sewer_replacement_costs(self, target_cap_frac=1.0):
+        """
+        calculate the required replacement size of all sewers to meet the
+        target_cap_frac
+        """
+        cost_estimates.replacements_for_capacity(self.G, target_cap_frac)
+        df = self.conduits()
+        millions = df[df.replacement_cost > 0].replacement_cost.sum() / 10**6
+        return millions
 
-        filtered_nodes = []
-        #print 'running hydrologic calcs...'
-        #filter nodes given catchment_min and pipe_types
-        for u,v,d, in self.G.edges_iter(data=True, nbunch=nbunch):
-            if self.G.node[u]['total_area_ac'] >= catchment_min:
-                if pipe_types is not None:
-                    if str(d['PIPE_TYPE']) in pipe_types:
-                        filtered_nodes += [u,v]
-                else:
-                    filtered_nodes += [u,v]
+    def update_hydraulics(self, return_period=0):
+        """
+        re run the hydraulic calculations on the network
+        """
+        self.G = hhcalcs_on_network(self.G)
+        self.G = analyze_flow_splits(self.G)
+        # self.G = accumulate_travel_time(self.G)
+        self.G = hydrologic_calcs_on_sewers(self.G, return_period=return_period)
+        self.G = analyze_downstream(self.G)
+        self.kpi = SewerShedKPI(self)
 
-        #run the hydrologic calculations on sewers meeting filter criteria
-        nbunch = set(filtered_nodes)
-        self.nbunch = nbunch
-        self.G = hydrologic_calcs_on_sewers(self.G, nbunch)
+    def assign_runoff_coefficient(self, C, manhole_fids=None):
+        """
+        set the runoff coefficient of each node to the given C. optionaly
+        isolate manholes by FACILITYID
+        """
+
+        # nbunch = None
+        # if manhole_fids:
+        #     nbunch = [n for n,d in self.G.nodes_iter(data=True)
+        #               if 'FACILITYID' in d and d['FACILITYID'] in manhole_fids]
+
+        for n,d in self.G.nodes_iter(data=True):
+            d['runoff_coefficient'] = C
 
     def conduits(self):
         """
@@ -190,9 +208,7 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
         acres =     (G1.node[u]['total_area_ac'] * split_frac)
         direct_ac = (G1.node[u].get('Shape_Area',0) / 43560.0) * split_frac
         C =  G1.node[u].get('runoff_coefficient', 0.85)
-        # if C != 0.85:
-        #     print 'coool'
-        #     break
+        G1.node[u]['runoff_coefficient'] = C #set it if its not there
 
         #grab the tc and path from the upstream node
         tc_path = G1.node[u]['tc_path']
@@ -298,12 +314,12 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
         terminal_nodes = [n for n,d in G1.out_degree_iter() if d == 0]
 
     #assign terminal node(s) to each node
-    for n in terminal_nodes:
-        for a in nx.ancestors(G1, n) | set({n}):
-            if 'terminal_nodes' in G1.node[a]:
-                G1.node[a]['terminal_nodes'] += [n]
-            else:
-                G1.node[a]['terminal_nodes'] = [n]
+    # for n in terminal_nodes:
+    #     for a in nx.ancestors(G1, n) | set({n}):
+    #         if 'terminal_nodes' in G1.node[a]:
+    #             G1.node[a]['terminal_nodes'] += [n]
+    #         else:
+    #             G1.node[a]['terminal_nodes'] = [n]
 
     #find limiting sewers
     for tn in terminal_nodes:

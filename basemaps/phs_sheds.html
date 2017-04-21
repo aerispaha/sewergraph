@@ -69,7 +69,7 @@ map.on('load', function() {
           'type': 'line',
           "source": "sewer-data",
           'paint': {
-              'line-color': "#22c16b",//"#8384a4",
+              'line-color': "#22c16b",
               'line-opacity': 0.4,
   			'line-width':15,
           },
@@ -81,22 +81,15 @@ map.on('load', function() {
       "source": "sewer-data",
       'paint': {
           'line-color': {
-              property: 'capacity_fraction',
+              property: 'peakQ',
               stops: [
-                // [5, '#64bab4'],
-                // [50, '#4dbc49'],
-                // [100, '#8764ba'],
-                // [300  , '#cc5151'],
-                // [500, '#ea30e4']
                 [0, '#50716c'],
-                [0.02, '#343332'],
-                [0.50, '#64bab4'],
-                [2.00  ,'#c94242'],//'#cc0000'],
-                [5.00, '#ea30e4']
+                [100, '#343332'],
+                [1000, '#64bab4'],
               ]
         },
-          'line-opacity': 0.75,
-  	      'line-width':3,
+          'line-opacity': 0.5,
+  	      'line-width':2,
       },
       'filter':["!has", "flow_split"],
 	});
@@ -111,6 +104,45 @@ map.on('load', function() {
         },
         'filter':["==", "FACILITYID", ""],
     });
+
+    var vtMatchProp = "FACILITYID";
+    var dataMatchProp = "FACILITYID";
+    var dataStyleProp = "limiting_rate";
+
+    // First value is the default, used where the is no data
+    var stops = [["0", "rgba(0,0,0,0)"]];
+
+    // Calculate color for each shed based on the phs rate
+    var maxValue = 5;
+    phs_sheds.forEach(function(row) {
+      phs = row[dataStyleProp];
+      if (phs > 0.0 ){color=  "rgb(255,0,0)";}
+      if (phs > 0.3 ){color=  "rgb(200,10,0)";}
+      if (phs > 0.9 ){color=  "rgb(150,55,0)";}
+      if (phs > 1.2 ){color=  "rgb(100,100,0)";}
+      if (phs > 1.5 ){color=  "rgb(55,200,0)";}
+      if (phs > 3 ){color=    "rgb(10,255,0)";}
+
+        stops.push([row[dataMatchProp], color]);
+    });
+    map.addLayer({
+          'id': 'phs-sheds',
+          'source': 'composite',
+          'source-layer': 'theissen2-41fqsr',
+          'type': 'fill',
+          'paint': {
+              'fill-color': {
+                'property':vtMatchProp,
+                'type':'categorical',
+                'stops':stops
+              },
+              'fill-opacity': 0.25,
+              // 'fill-outline-color':"rgba(0,0,0,1)",
+          },
+          'filter':["in", "FACILITYID"].concat(phs_sheds.map(function(obj){
+            return obj['FACILITYID'];
+          })),
+      });
     map.addLayer({
             "id": "sewer-splits",
             'type': 'line',
@@ -126,8 +158,8 @@ map.on('load', function() {
                       [5.00, '#ea30e4']
                     ]
               },
-                'line-opacity': 0.9,
-    			      'line-width':4,
+                'line-opacity': 0.5,
+    			      'line-width':2,
                 "line-dasharray": [0.5, 0.5],
             },
     		'filter':[
