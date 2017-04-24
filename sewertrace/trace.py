@@ -102,12 +102,6 @@ class SewerNet(object):
         set the runoff coefficient of each node to the given C. optionaly
         isolate manholes by FACILITYID
         """
-
-        # nbunch = None
-        # if manhole_fids:
-        #     nbunch = [n for n,d in self.G.nodes_iter(data=True)
-        #               if 'FACILITYID' in d and d['FACILITYID'] in manhole_fids]
-
         for n,d in self.G.nodes_iter(data=True):
             d['runoff_coefficient'] = C
 
