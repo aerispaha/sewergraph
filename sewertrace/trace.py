@@ -95,7 +95,7 @@ class SewerNet(object):
         nbunch = nx.ancestors(self.G, tn) | set({tn})
         G = self.G.subgraph(nbunch).copy()
 
-        return SewerNet(G=G, name=None)
+        return SewerNet(G=G, name=name)
 
     def estimate_sewer_replacement_costs(self, target_cap_frac=1.0):
         """
