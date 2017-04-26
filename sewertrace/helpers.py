@@ -110,16 +110,6 @@ def clean_network_data(G):
         clean_dict(G1.node[v], node_keeper_keys)
         clean_dict(d, edge_keeper_keys)
 
-        # #standardize unknowns
-        # if d['PIPESHAPE'] not in ['BOX', 'CIR', 'EGG']:
-        #     d['PIPESHAPE'] = None
-        # else:
-        #     if (d['PIPESHAPE'] == 'CIR' and d['Diameter'] == 0
-        #         and d['Height'] > 0 and d['Width'] > 0):
-        #         d
-        #         d['Diameter'], d['Height'], d['Width']
-
-
     return G1
 
 def pairwise(iterable):
@@ -225,59 +215,6 @@ def create_html_map(geo_layers, filename, G, basemap='mapbox_base.html'):
                     newmap.write('map.fitBounds([[{}, {}], [{}, {}]]);\n'
                                  .format(bbox[0][0], bbox[0][1], bbox[1][0],
                                          bbox[1][1]))
-
-                else:
-					newmap.write(line)
-
-def visualize(G, filename, full_G=None, basemap='mapbox_base.html'):
-    import geojson
-
-    # This is the project root #HACK
-    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    BASEMAP_PATH = os.path.join(ROOT_DIR,'basemaps',basemap)
-    # basemap_path = r'P:\06_Tools\sewertrace\basemaps\mapbox_base.html'
-
-
-    #create geojson, find bbox and center
-    geo_conduits = write_geojson(G)
-    phs_sheds =[{'FACILITYID':d['FACILITYID'],
-                 'limiting_rate':d['limiting_rate']}
-                for n, d in G.nodes_iter(data=True) if 'FACILITYID' in d]
-    # geo_nodes = write_geojson(G, geomtype='point')
-
-    #get center point
-    xs = [d['X_Coord'] for n,d in G.nodes_iter(data=True) if 'X_Coord' in d]
-    ys = [d['Y_Coord'] for n,d in G.nodes_iter(data=True) if 'Y_Coord' in d]
-    c = ((max(xs) + min(xs))/2 , (max(ys) + min(ys))/2)
-    bbox = [(min(xs), min(ys)), (max(xs), max(ys))]
-
-
-    with open(BASEMAP_PATH, 'r') as bm:
-        # filename = os.path.join(os.path.dirname(geocondpath), self.alt_report.model.name + '.html')
-        with open(filename, 'wb') as newmap:
-            for line in bm:
-                if '//INSERT GEOJSON HERE ~~~~~' in line:
-                    newmap.write('conduits = {};\n'.format(geojson.dumps(geo_conduits)))
-                    # newmap.write('nodes = {};\n'.format(geojson.dumps(geo_nodes))
-                    newmap.write('phs_sheds = {};\n'.format(json.dumps(phs_sheds)))
-
-                    #write the network as a json object
-                    # net_dict = json_graph.node_link_data(G)
-                    edges = G.edges()
-                    nodes = G.nodes(data=True)
-                    if full_G is not None:
-                        #pass the entire network to jsnetworkx
-                        edges = full_G.edges()
-                        nodes = full_G.nodes(data=True)
-
-                    # newmap.write('net_json = {};\n'.format(json.dumps(net_dict)))
-                    newmap.write('edges = {};\n'.format(json.dumps(edges)))
-                    newmap.write('nodes = {};\n'.format(json.dumps(nodes)))
-
-            	if 'center: [-75.148946, 39.921685],' in line:
-					newmap.write('center:[{}, {}],\n'.format(c[0], c[1]))
-                if '//INSERT BBOX HERE' in line:
-                    newmap.write('map.fitBounds([[{}, {}], [{}, {}]]);\n'.format(bbox[0][0], bbox[0][1], bbox[1][0], bbox[1][1]))
 
                 else:
 					newmap.write(line)

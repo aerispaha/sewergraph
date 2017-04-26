@@ -89,6 +89,35 @@ def capacity_peak_comparison_plt(df, name ='Sewers', title='Peak Flow vs Sewer C
     return fig, data, layout
 
 
+def cdf_go(net, parameter='capacity_fraction', cumu_param = 'Shape_Leng',
+           normal=1, units='', df=None, name =None):
+    """
+    create a Plotly graph object of a cumulative distribution function across
+    the edges
+    """
+    #sort and accumulate length
+    if df is None:
+        df = net.conduits()
+    if name is None:
+        name = net.name
+
+    df = df.sort_values(by=parameter, ascending=True)
+    df['cumulated_param'] = df[cumu_param].cumsum()
+    df['cumulated_param_frac'] = df.cumulated_param / df[cumu_param].sum()
+    df['cumu_converted'] = df.cumulated_param / normal
+    text = ['<br>'.join(x) + units
+            for x in zip(df.LABEL.astype(str).tolist(),
+                         df.cumu_converted.round(1).astype(str).tolist())]
+    graph_obj = Scatter(
+        x = df[parameter],
+        y = df.cumulated_param_frac,
+        text = text,
+        name = name,
+    )
+
+    return graph_obj
+
+
 def cumulative_distribution(df, name = 'Capacity Surplus',
                             title='Sewer Capacity Surplus By Length',
                             parameter='capacity_fraction',

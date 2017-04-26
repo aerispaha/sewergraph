@@ -2,6 +2,7 @@ import networkx as nx
 import pandas as pd
 from helpers import (pairwise, visualize, open_file,
                      clean_network_data, get_node_values, round_shapefile_node_keys)
+import helpers
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
 from resolve_data import resolve_geom_slope_gaps
 from kpi import SewerShedKPI
@@ -9,8 +10,8 @@ import cost_estimates
 import os
 
 class SewerNet(object):
-    def __init__(self, shapefile, boundary_conditions=None, run=True,
-                 return_period=0):
+    def __init__(self, shapefile=None, G=None, boundary_conditions=None, run=True,
+                 return_period=0, name=None):
 
         """
         Sewer network data wrapper that performs hydraulic and hydrologic (H&H)
@@ -38,32 +39,35 @@ class SewerNet(object):
             whether the 'hydrologic_calcs_on_sewers' and 'analyze_downstream'
             should be run upon instantiation.
         """
+        if shapefile is not None:
+            self.shapefile_path = shapefile
+            G = nx.read_shp(shapefile)
 
-        self.shapefile_path = shapefile
-        G = nx.read_shp(shapefile)
+            #clean up the network (rm unecessary DataConv fields, isolated nodes)
+            G = clean_network_data(G)
+            G = round_shapefile_node_keys(G)
+            G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
+            G = resolve_geom_slope_gaps(G)
 
-        #clean up the network (rm unecessary DataConv fields, isolated nodes)
-        G = clean_network_data(G)
-        G = round_shapefile_node_keys(G)
-        G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
-        G = resolve_geom_slope_gaps(G)
 
-        #perform travel time and capacity calcs
-        G = hhcalcs_on_network(G)
+            #perform travel time and capacity calcs
+            G = hhcalcs_on_network(G)
 
-        #id flow split sewers and calculate split fractions
-        G = analyze_flow_splits(G)
+            #id flow split sewers and calculate split fractions
+            G = analyze_flow_splits(G)
 
-        if boundary_conditions is not None:
-            add_boundary_conditions(G, boundary_conditions)
-        self.boundary_conditions = boundary_conditions
+            if boundary_conditions is not None:
+                add_boundary_conditions(G, boundary_conditions)
+            self.boundary_conditions = boundary_conditions
 
-        #accumulate drainage areas
-        G = accumulate_area(G)
+            #accumulate drainage areas
+            G = accumulate_area(G)
 
-        #accumulating travel times
-        G = accumulate_travel_time(G)
+            #accumulating travel times
+            G = accumulate_travel_time(G)
+
         self.G = G
+        self.name = name
 
         #summary calculations
         self.top_nodes = [n for n,d in G.in_degree_iter() if d == 0]
@@ -75,6 +79,23 @@ class SewerNet(object):
             self.G = analyze_downstream(self.G)
 
         self.kpi = SewerShedKPI(self)
+
+    def subshed(self, outfall_node=None, outfall_fid=None, name=None):
+        """
+        return a SewerNet object with everything upstream of the outfall node
+        given by node or FACILITYID
+        """
+        if outfall_node is not None:
+            tn = outfall_node
+        if outfall_fid is not None:
+            tn = [n for n,d in self.G.nodes_iter(data=True) if 'FACILITYID' in d
+                  and d['FACILITYID']==outfall_fid][0]
+
+        #collect the nodes upstream of the terminal node, tn
+        nbunch = nx.ancestors(self.G, tn) | set({tn})
+        G = self.G.subgraph(nbunch).copy()
+
+        return SewerNet(G=G, name=None)
 
     def estimate_sewer_replacement_costs(self, target_cap_frac=1.0):
         """
@@ -124,12 +145,29 @@ class SewerNet(object):
         df = pd.DataFrame(data=data, index=self.G.nodes())
         return df
 
-    def to_map(self, filename=None, startfile=True):
+    def to_map(self, filename=None, startfile=True, phs_area=False):
 
         if filename is None:
             filename = os.path.join(shapefile_path, 'map.html')
 
-        visualize(self.G.subgraph(self.nbunch), filename, self.G)
+        if phs_area:
+            phs_rates = [{'FACILITYID':d['FACILITYID'],
+                          'limiting_rate':d['limiting_rate']}
+                         for n, d in self.G.nodes_iter(data=True)
+                         if 'FACILITYID' in d]
+            lyrs = dict(
+                conduits = helpers.write_geojson(self.G),
+                phs_sheds = phs_rates
+            )
+            helpers.create_html_map(lyrs, filename, self.G,'phs_sheds.html')
+            print 'phs yea'
+        else:
+            lyrs = dict(conduits = helpers.write_geojson(self.G))
+            helpers.create_html_map(lyrs, filename, self.G)
+
+
+        # helpers.create_html_map(lyrs, filename, self.G)
+        # visualize(self.G.subgraph(self.nbunch), filename, self.G)
 
         if startfile:
             open_file(filename)
@@ -306,14 +344,6 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
         G1 = G
     if terminal_nodes is None:
         terminal_nodes = [n for n,d in G1.out_degree_iter() if d == 0]
-
-    #assign terminal node(s) to each node
-    # for n in terminal_nodes:
-    #     for a in nx.ancestors(G1, n) | set({n}):
-    #         if 'terminal_nodes' in G1.node[a]:
-    #             G1.node[a]['terminal_nodes'] += [n]
-    #         else:
-    #             G1.node[a]['terminal_nodes'] = [n]
 
     #find limiting sewers
     for tn in terminal_nodes:

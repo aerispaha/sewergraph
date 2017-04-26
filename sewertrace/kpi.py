@@ -23,6 +23,8 @@ class SewerShedKPI(object):
 
         #HYDRAULIC
         df = net.conduits()
+        self.peakQ = df.peakQ.max()
+
         branches = df.loc[df.PIPE_TYPE == 'BRANCH']
         trunks = df.loc[df.PIPE_TYPE == 'TRUNK']
         other = df.loc[(df.PIPE_TYPE !='BRANCH') & (df.PIPE_TYPE !='TRUNK')]
@@ -65,4 +67,25 @@ class SewerShedKPI(object):
         index = ['total_mi','oversized_mi', 'efficient_mi', 'moderate_mi',
                  'severe_mi', 'cap_frac_mean']
         cols = ['all_sewers', 'branches', 'trunks', 'other']
-        self.capacity = pd.DataFrame(hydr_dict, index = index, columns=cols)
+        self.sewers = pd.DataFrame(hydr_dict, index = index, columns=cols)
+
+        #total length of conduits divided by total shed area (miles/square mile)
+        self.drainage_density = (df.Shape_Leng.sum() / nodes.Shape_Area.sum()) * 5280
+        self.capacity_deficit = net.estimate_sewer_replacement_costs() #millions
+        self.deficit_per_acre = self.capacity_deficit / self.shed_area_ac
+
+
+
+
+    def __str__(self):
+
+        s = []
+        s.append('Total Shed Area: {} ac'.format(round(self.shed_area_ac, 1)))
+        s.append('Time of Concentration: {} min'.format(round(self.tc_min,1)))
+        s.append('Peak Q: {} cfs'.format(round(self.peakQ,1)))
+        s.append('Total Sewer Miles: {}mi'.format(round(self.sewers.all_sewers.total_mi,1)))
+        s.append('Drainage Density: {} mi/sqmi'.format(round(self.drainage_density,1)))
+        s.append('Capacity Deficit: ${}M'.format(round(self.capacity_deficit,1)))
+        s.append('DPA: ${}M/ac'.format(round(self.deficit_per_acre,3)))
+
+        return '\n'.join(s)
