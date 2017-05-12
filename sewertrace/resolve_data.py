@@ -81,6 +81,54 @@ def resolve_geometry(G, u, v, search_depth=5):
 
     return geom, diam, h, w, label, fid
 
+def dfs_nodes_upstream_attributes_iter(G, source=None, attribute=None):
+    """
+    Produce node attributes in a depth-first-search (DFS) traversing
+    upstream and terminating each search leg when finding a node having a
+    non-null attribute.
+
+    Based on Networkx dfs source
+
+    NOTE: resolve slopes by dfs upstream and downstream finding the closest
+    nodes with trusted elevation data having the largest cumulative drainage
+    area.  
+
+    """
+    if source is None:
+        # produce edges for all components
+        nodes = G
+    else:
+        # produce edges for components with source
+        nodes = [source]
+    visited=set()
+    for start in nodes:
+        if start in visited:
+            continue
+        visited.add(start)
+        stack = [(iter(G.pred[start]), start)]
+        while stack:
+            parents, child = stack[-1]
+            try:
+                parent = next(parents)
+                node = G.node[parent]
+                if node.get(attribute, None) is not None:
+                    #by not appending to the search stack, this reach is no
+                    #longer traversed
+                    yield (parent, node)
+                else:
+                    #keep searching
+                    stack.append((iter(G.pred[parent]), parent))
+                if parent not in visited:
+                    visited.add(parent)
+
+            except StopIteration:
+                #print edge['FACILITYID'], 'terminal', [i[1] for i in stack]
+                stack.pop()
+
+def dfs_nodes_upstream_attributes(G, source=None, attribute=None):
+    res = dfs_nodes_upstream_attributes_iter(G, source, attribute)
+    return list(res)
+
 def dfs_edges_upstream_attributes_iter(G, source=None, attribute=None):
     """
     Produce edge attributes in a depth-first-search (DFS) traversing
@@ -160,7 +208,7 @@ def resolve_geom_slope_gaps(G, nbunch=None):
 
     G1 = G.copy()
     preprocess_data(G1)
-
+    G1 = extend_elevation_data(G1)
     for u,v,d in G1.edges_iter(data=True, nbunch=nbunch):
 
         if d['PIPESHAPE'] not in ['BOX', 'CIR', 'EGG']:
@@ -177,7 +225,10 @@ def resolve_geom_slope_gaps(G, nbunch=None):
         if d['Slope'] == 0:
 
             up_slope, dn_slope, fids = resolve_slope(G1, u, v)
+
+            #this is dumb, will probably return zero quite often
             d['Slope'] = min(up_slope, dn_slope)
+
             d['slope_source'] = fids
 
 
@@ -228,6 +279,7 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
     by edges (sewers) with trusted slope values.
     """
     G1 = G.copy()
+    print 'hello'
     topo_sorted_nodes = nx.topological_sort(G1, reverse=True)
 
     for n in topo_sorted_nodes:
@@ -250,25 +302,25 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
                     length = G1[p][n]['Shape_Leng']
                     G1.node[p]['invert_trusted'] = invert + (slope * length)
 
-    # for n in list(reversed(topo_sorted_nodes)):
-    #
-    #     #TRAVERSE THE TREE FROM TOP TO BOTTOM
-    #     invert = None
-    #
-    #     #assign the trusted invert
-    #     if data_key in G1.node[n] and G1.node[n][data_key] != null_val:
-    #         invert = G1.node[n][data_key]
-    #
-    #     if 'invert_trusted' in G1.node[n]:
-    #         invert = G1.node[n]['invert_trusted']
-    #
-    #     if invert is not None:
-    #         for s in G1.successors(n):
-    #             if G1[n][s]['Slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[s]:
-    #                 #trusted slope, can calculate trusted invert
-    #                 slope = G1[n][s]['Slope'] / 100.0
-    #                 length = G1[n][s]['Shape_Leng']
-    #                 G1.node[s]['invert_trusted'] = invert - (slope * length)
+    for n in list(reversed(topo_sorted_nodes)):
+
+        #TRAVERSE THE TREE FROM TOP TO BOTTOM
+        invert = None
+
+        #assign the trusted invert
+        if data_key in G1.node[n] and G1.node[n][data_key] != null_val:
+            invert = G1.node[n][data_key]
+
+        if 'invert_trusted' in G1.node[n]:
+            invert = G1.node[n]['invert_trusted']
+
+        if invert is not None:
+            for s in G1.successors(n):
+                if G1[n][s]['Slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[s]:
+                    #trusted slope, can calculate trusted invert
+                    slope = G1[n][s]['Slope'] / 100.0
+                    length = G1[n][s]['Shape_Leng']
+                    G1.node[s]['invert_trusted'] = invert - (slope * length)
 
     return G1
 
