@@ -4,7 +4,7 @@ from helpers import (pairwise, open_file,
                      clean_network_data, get_node_values, round_shapefile_node_keys)
 import helpers
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
-from resolve_data import resolve_geom_slope_gaps
+from resolve_data import resolve_geom_gaps, resolve_slope_gaps
 from kpi import SewerShedKPI
 import cost_estimates
 import os
@@ -47,10 +47,10 @@ class SewerNet(object):
             G = clean_network_data(G)
             G = round_shapefile_node_keys(G)
             G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
-            G = resolve_geom_slope_gaps(G)
+            G = resolve_geom_gaps(G)
 
 
-            #perform travel time and capacity calcs
+            #perform capacity calcs
             G = hhcalcs_on_network(G)
 
             #id flow split sewers and calculate split fractions
@@ -62,6 +62,8 @@ class SewerNet(object):
 
             #accumulate drainage areas
             G = accumulate_area(G)
+            G = resolve_slope_gaps(G)
+            G = hhcalcs_on_network(G)
 
             #accumulating travel times
             G = accumulate_travel_time(G)

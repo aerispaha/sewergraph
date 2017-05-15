@@ -133,7 +133,7 @@ map.on('load', function() {
                 'line-width':2,
             },
         'line-join':'round',
-    		'filter':[">=", "calculated_slope", 0],
+    		'filter':[">=", "slope_calculated", 0],
       });
       map.addLayer({
               "id": "sewer-zero-slope",
@@ -184,7 +184,7 @@ map.on('load', function() {
     console.log(feature.properties);
     up_fids = get_upstream_facility_ids(G, feature.properties.dn_node)
 
-    slope_calc_fids = JSON.parse(feature.properties.calculated_slope_fids)
+    slope_calc_fids = JSON.parse(feature.properties.slope_calculated_fids)
     map.setFilter("sewer-calc-source", ["in", "FACILITYID"].concat(slope_calc_fids));
 
     map.setFilter("sheds", ["in", "FACILITYID"].concat(up_fids));

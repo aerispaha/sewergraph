@@ -81,7 +81,7 @@ def resolve_geometry(G, u, v, search_depth=5):
 
     return geom, diam, h, w, label, fid
 
-def dfs_nodes_upstream_attributes_iter(G, source=None, attribute=None):
+def dfs_nodes_attributes_iter(G, source=None, attribute=None, upstream=True):
     """
     Produce node attributes in a depth-first-search (DFS) traversing
     upstream and terminating each search leg when finding a node having a
@@ -91,7 +91,7 @@ def dfs_nodes_upstream_attributes_iter(G, source=None, attribute=None):
 
     NOTE: resolve slopes by dfs upstream and downstream finding the closest
     nodes with trusted elevation data having the largest cumulative drainage
-    area.  
+    area.
 
     """
     if source is None:
@@ -105,7 +105,10 @@ def dfs_nodes_upstream_attributes_iter(G, source=None, attribute=None):
         if start in visited:
             continue
         visited.add(start)
-        stack = [(iter(G.pred[start]), start)]
+        if upstream:
+            stack = [(iter(G.pred[start]), start)]
+        else:
+            stack = [(iter(G.succ[start]), start)]
         while stack:
             parents, child = stack[-1]
             try:
@@ -117,7 +120,11 @@ def dfs_nodes_upstream_attributes_iter(G, source=None, attribute=None):
                     yield (parent, node)
                 else:
                     #keep searching
-                    stack.append((iter(G.pred[parent]), parent))
+                    if upstream:
+                        stack.append((iter(G.pred[parent]), parent))
+                    else:
+                        stack.append((iter(G.succ[parent]), parent))
+
                 if parent not in visited:
                     visited.add(parent)
 
@@ -125,8 +132,8 @@ def dfs_nodes_upstream_attributes_iter(G, source=None, attribute=None):
                 #print edge['FACILITYID'], 'terminal', [i[1] for i in stack]
                 stack.pop()
 
-def dfs_nodes_upstream_attributes(G, source=None, attribute=None):
-    res = dfs_nodes_upstream_attributes_iter(G, source, attribute)
+def dfs_nodes_attributes(G, source=None, attribute=None, upstream=True):
+    res = dfs_nodes_attributes_iter(G, source, attribute, upstream)
     return list(res)
 
 def dfs_edges_upstream_attributes_iter(G, source=None, attribute=None):
@@ -199,8 +206,57 @@ def resolve_slope(G, u, v, search_depth=10):
         i +=1
 
     return (up_slope, dn_slope, fids)
+def determine_slope(G, u, v):
 
-def resolve_geom_slope_gaps(G, nbunch=None):
+    #defaults
+    i,j = u,v
+    up_inv = dn_inv = 0
+    length = 1
+
+    #first, check if trusted invs exist in u or v, else find trusted inverts up/dwn
+    if 'invert_trusted' in G.node[u]:
+        up_inv, i = G.node[u]['invert_trusted'], u
+    else:
+        up_invs_data = dfs_nodes_attributes(G,u,'invert_trusted',upstream=True)
+        up_invs = [(d['total_area_ac'], d['invert_trusted'], n) for n,d in up_invs_data]
+        #use the up/dn invs from the node having the highest accumulated area
+        up_invs.sort(reverse=True)
+        if len(up_invs) > 0:
+            _, up_inv, i = up_invs[0]
+
+    if 'invert_trusted' in G.node[v]:
+        dn_inv, j = G.node[v]['invert_trusted'], v
+    else:
+        dn_invs_data = dfs_nodes_attributes(G,v,'invert_trusted',upstream=False)
+        dn_invs = [(d['total_area_ac'], d['invert_trusted'], n) for n,d in dn_invs_data]
+        dn_invs.sort(reverse=True)
+        if len(dn_invs) > 0:
+            _, dn_inv, j = dn_invs[0]
+
+
+    #get the length between the trusted inverts
+    length = nx.shortest_path_length(G, source=i, target=j, weight='Shape_Leng')
+
+    #calculate the slope
+    slope = (up_inv - dn_inv) / length
+    return slope, i, j, length
+
+
+def resolve_slope_gaps(G):
+    G1 = G.copy()
+    for u,v,d in G1.edges_iter(data=True):
+        if d['Slope'] == 0:
+
+            # up_slope, dn_slope, fids = resolve_slope(G1, u, v)
+
+            #this is dumb, will probably return zero quite often
+            # d['Slope'] = min(up_slope, dn_slope)
+            slope, i, j, l = determine_slope(G1, u, v)
+            d['slope_calculated'] = slope * 100.0
+            d['slope_source'] = [i,j]
+    return G1
+
+def resolve_geom_gaps(G, nbunch=None):
     """
     find sewers with missing geom data and attempt to infer from adjacent
     sewers
@@ -222,14 +278,15 @@ def resolve_geom_slope_gaps(G, nbunch=None):
             d['Height'], d['Width'], d['LABEL'] = h, w, label
             d['geometry_source'] = fid
 
-        if d['Slope'] == 0:
-
-            up_slope, dn_slope, fids = resolve_slope(G1, u, v)
-
-            #this is dumb, will probably return zero quite often
-            d['Slope'] = min(up_slope, dn_slope)
-
-            d['slope_source'] = fids
+        # if d['Slope'] == 0:
+        #
+        #     # up_slope, dn_slope, fids = resolve_slope(G1, u, v)
+        #
+        #     #this is dumb, will probably return zero quite often
+        #     # d['Slope'] = min(up_slope, dn_slope)
+        #     slope, i, j, l = determine_slope(G1, u, v)
+        #     d['slope_calculated'] = slope
+        #     d['slope_source'] = fids
 
 
     return G1

@@ -104,8 +104,8 @@ def clean_network_data(G):
         edge_keeper_keys = ['Diameter', 'Height','Width', 'FACILITYID','Json',
                             'Slope', 'Shape_Leng', 'Year_Insta', 'PIPESHAPE',
                             'PIPE_TYPE', 'STICKERLIN', 'LABEL','ELEVATION_',
-                            'ELEVATIONI','calculated_slope',
-                            'calculated_slope_fids']
+                            'ELEVATIONI','slope_calculated',
+                            'slope_calculated_fids']
         clean_dict(G1.node[u], node_keeper_keys)
         clean_dict(G1.node[v], node_keeper_keys)
         clean_dict(d, edge_keeper_keys)
