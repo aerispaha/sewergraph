@@ -1,11 +1,13 @@
 from itertools import chain
 from sewertrace import helpers
 import networkx as nx
+from hhcalculations import slope_at_velocity, mannings_velocity
 
 
 def preprocess_data(G):
 
     for u,v,d in G.edges_iter(data=True):
+        #normalize geometry coding
         geom = G[u][v]['PIPESHAPE']
         diam = G[u][v]['Diameter']
         h = G[u][v]['Height']
@@ -23,6 +25,10 @@ def preprocess_data(G):
             d['PIPESHAPE'] = infer_from_dimensions(diam, h, w)
             d['inferred_geom'] = 'Y'
 
+    for n,d in G.nodes_iter(data=True):
+        #normalize elevation data
+        if 'ELEVATIONI' in d and d['ELEVATIONI'] == 0:
+            del d['ELEVATIONI']# = None
 
 def infer_from_dimensions(diam, h, w):
     #see if we can infer from the attributes
@@ -81,7 +87,8 @@ def resolve_geometry(G, u, v, search_depth=5):
 
     return geom, diam, h, w, label, fid
 
-def dfs_nodes_attributes_iter(G, source=None, attribute=None, upstream=True):
+def dfs_nodes_attributes_iter(G, source=None, attribute=None, upstream=True,
+                              null_val=None):
     """
     Produce node attributes in a depth-first-search (DFS) traversing
     upstream and terminating each search leg when finding a node having a
@@ -114,7 +121,7 @@ def dfs_nodes_attributes_iter(G, source=None, attribute=None, upstream=True):
             try:
                 parent = next(parents)
                 node = G.node[parent]
-                if node.get(attribute, None) is not None:
+                if attribute in node and node[attribute] is not null_val:
                     #by not appending to the search stack, this reach is no
                     #longer traversed
                     yield (parent, node)
@@ -206,33 +213,42 @@ def resolve_slope(G, u, v, search_depth=10):
         i +=1
 
     return (up_slope, dn_slope, fids)
-def determine_slope(G, u, v):
+def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
 
     #defaults
     i,j = u,v
     up_inv = dn_inv = 0
     length = 1
 
-    #first, check if trusted invs exist in u or v, else find trusted inverts up/dwn
-    if 'invert_trusted' in G.node[u]:
-        up_inv, i = G.node[u]['invert_trusted'], u
-    else:
-        up_invs_data = dfs_nodes_attributes(G,u,'invert_trusted',upstream=True)
-        up_invs = [(d['total_area_ac'], d['invert_trusted'], n) for n,d in up_invs_data]
+    def adjacent_inv(G, n, data_key, upstream=True):
+
         #use the up/dn invs from the node having the highest accumulated area
-        up_invs.sort(reverse=True)
-        if len(up_invs) > 0:
-            _, up_inv, i = up_invs[0]
+        data = dfs_nodes_attributes(G,n,data_key,upstream)
+        invs = [(d['total_area_ac'], d[data_key], n) for n,d in data]
+        invs.sort(reverse=True)
+        if len(invs) > 0:
+            _, up_inv, ajd_n = invs[0]
+            return up_inv, ajd_n
+        else:
+            return None, None
 
-    if 'invert_trusted' in G.node[v]:
-        dn_inv, j = G.node[v]['invert_trusted'], v
+    #first, check if trusted invs exist in u or v, else find trusted inverts up/dwn
+    if data_key in G.node[u]: up_inv, i = G.node[u][data_key], u
     else:
-        dn_invs_data = dfs_nodes_attributes(G,v,'invert_trusted',upstream=False)
-        dn_invs = [(d['total_area_ac'], d['invert_trusted'], n) for n,d in dn_invs_data]
-        dn_invs.sort(reverse=True)
-        if len(dn_invs) > 0:
-            _, dn_inv, j = dn_invs[0]
+        up_inv, i = adjacent_inv(G, u, data_key, upstream=True)
 
+    if data_key in G.node[v]: dn_inv, j = G.node[v][data_key], v
+    else:
+        dn_inv, j = adjacent_inv(G, v, data_key, upstream=False)
+
+    #we we can't find an elevation upstream, search downstream
+    if up_inv is None and dn_inv is not None:
+        up_inv, i = dn_inv, j
+        dn_inv, j = adjacent_inv(G, i, data_key, upstream=False)
+    #we we can't find an elevation downstream, search upstream
+    if dn_inv is None and up_inv is not None:
+        dn_inv, j = up_inv, i
+        up_inv, i = adjacent_inv(G, j, data_key, upstream=True)
 
     #get the length between the trusted inverts
     length = nx.shortest_path_length(G, source=i, target=j, weight='Shape_Leng')
@@ -241,17 +257,18 @@ def determine_slope(G, u, v):
     slope = (up_inv - dn_inv) / length
     return slope, i, j, length
 
-
 def resolve_slope_gaps(G):
     G1 = G.copy()
     for u,v,d in G1.edges_iter(data=True):
         if d['Slope'] == 0:
+            slope, i, j, l = determine_slope_from_adjacent_inverts(G1, u, v)
 
-            # up_slope, dn_slope, fids = resolve_slope(G1, u, v)
+            if slope < 0:
+                #if negative slope assume slope for min design velocity
+                height, width = d['Height'], d['Width']
+                shape, diameter = d['PIPESHAPE'], d['Diameter']
+                slope = slope_at_velocity(2.5, diameter, height, width, shape)
 
-            #this is dumb, will probably return zero quite often
-            # d['Slope'] = min(up_slope, dn_slope)
-            slope, i, j, l = determine_slope(G1, u, v)
             d['slope_calculated'] = slope * 100.0
             d['slope_source'] = [i,j]
     return G1

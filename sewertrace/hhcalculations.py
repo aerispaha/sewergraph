@@ -35,7 +35,7 @@ def hhcalcs_on_network(G):
 		# diameter = max( data['Diameter'], data['Height'])
 		if 'slope_calculated' in data:
 			slope = max(data['slope_calculated'], 0.01)
-			data['Slope'] = slope
+			# data['Slope'] = slope
 		else:
 			slope = max(data['Slope'], 0.1)
 		data['slope_used_in_calcs'] = slope
@@ -63,6 +63,14 @@ def hhcalcs_on_network(G):
 		data['travel_time'] = T
 
 	return G1
+
+def slope_at_velocity(velocity, diameter, height=None, width=None, shape="CIR"):
+	Rh = hydraulic_radius(shape, diameter, height, width)
+	n = get_mannings(shape, diameter)
+	k = (1.49 / n) * math.pow(Rh, 0.667)
+
+	slope = (velocity / k) ** 2
+	return slope
 
 def mannings_velocity(diameter, slope, height=None, width=None, shape="CIR", data=None):
 

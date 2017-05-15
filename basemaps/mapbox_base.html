@@ -203,12 +203,15 @@ map.on('load', function() {
     var tc = Math.round(props.tc * 10) / 10
     var q = Math.round(props.peakQ * 10) / 10
     var cap = Math.round(props.capacity * 10) / 10
-    var cap_frac = props.capacity_fraction
+    var cap_frac = Math.round(props.capacity_fraction * 10) / 10
     var v = Math.round(props.velocity * 10) / 10
 
     var net = 'nodes: [' + props.up_node + '][' + props.dn_node + ']'
     if (props.flow_split_frac) {
       net = net + '<br>Split Frac: ' +  Math.round(props.flow_split_frac*100) + '%'
+    }
+    if (props.slope_calculated) {
+      label = label + '<br>Slope Calculated: ' +  Math.round(props.slope_calculated* 100) / 100 + '%'
     }
     console.log(net)
     // console.log(feature.properties);
