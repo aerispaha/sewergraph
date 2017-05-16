@@ -186,33 +186,6 @@ def dfs_edges_upstream_attributes(G, source=None, attribute=None):
     res = dfs_edges_upstream_attributes_iter(G, source, attribute)
     return list(res)
 
-def resolve_slope(G, u, v, search_depth=10):
-
-    i = up_slope = dn_slope = 0
-    up, dn = u, v
-    fids = []
-
-    #search upstream for a slope
-    while up_slope == 0 and search_depth > i:
-        for up in G.predecessors(u):
-            up_slope = G[up][u]['Slope']
-            fids.append(G[up][u]['FACILITYID'])
-            # print '{}  up_slope {}'.format(u, up_slope)
-
-        u = up
-        i +=1
-
-    #search downsteam for a slope
-    while dn_slope == 0 and search_depth > i:
-        for dn in G.successors(v):
-            dn_slope = G[v][dn]['Slope']
-            fids.append(G[v][dn]['FACILITYID'])
-            # print '{} dn slope {}'.format(v, dn_slope)
-
-        v = dn
-        i +=1
-
-    return (up_slope, dn_slope, fids)
 def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
 
     #defaults
@@ -295,54 +268,6 @@ def resolve_geom_gaps(G, nbunch=None):
             d['Height'], d['Width'], d['LABEL'] = h, w, label
             d['geometry_source'] = fid
 
-        # if d['Slope'] == 0:
-        #
-        #     # up_slope, dn_slope, fids = resolve_slope(G1, u, v)
-        #
-        #     #this is dumb, will probably return zero quite often
-        #     # d['Slope'] = min(up_slope, dn_slope)
-        #     slope, i, j, l = determine_slope(G1, u, v)
-        #     d['slope_calculated'] = slope
-        #     d['slope_source'] = fids
-
-
-    return G1
-
-def assign_paths_to_data(G, data_key='ELEVATIONI', null_val=0):
-    """
-    for each node, determine which closest nodes upstream and downstream
-    have an attribute equal to the data_key with a value not equal to the
-    null_val
-    """
-    G1 = G.copy()
-    topo_sorted_nodes = nx.topological_sort(G1, reverse=True)
-
-    terminal_nodes = [n for n,d in G1.out_degree_iter() if d == 0]
-    top_nodes = [n for n,d in G1.in_degree_iter() if d == 0]
-
-    #Assign starting El
-    for tn in terminal_nodes+top_nodes:
-        #set the terminal nodes data
-        G1.node[tn]['dn_nodes_with_data'] = []
-        G1.node[tn]['up_nodes_with_data'] = []
-
-    for n in topo_sorted_nodes:
-        if data_key in G1.node[n] and G1.node[n][data_key] != null_val:
-            G1.node[n]['dn_nodes_with_data'] = [n]
-
-        else:
-            G1.node[n]['dn_nodes_with_data'] = []
-            for s in G1.successors(n):
-                G1.node[n]['dn_nodes_with_data'] += G1.node[s]['dn_nodes_with_data']
-
-    for n in list(reversed(topo_sorted_nodes)):
-        if data_key in G1.node[n] and G1.node[n][data_key] != null_val:
-            G1.node[n]['up_nodes_with_data'] = [n]
-        else:
-            G1.node[n]['up_nodes_with_data'] = []
-            for p in G1.predecessors(n):
-                G1.node[n]['up_nodes_with_data'] += G1.node[p]['up_nodes_with_data']
-
     return G1
 
 def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
@@ -353,7 +278,7 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
     by edges (sewers) with trusted slope values.
     """
     G1 = G.copy()
-    print 'hello'
+
     topo_sorted_nodes = nx.topological_sort(G1, reverse=True)
 
     for n in topo_sorted_nodes:
