@@ -11,7 +11,7 @@ import os
 
 class SewerNet(object):
     def __init__(self, shapefile=None, G=None, boundary_conditions=None, run=True,
-                 return_period=0, name=None):
+                 return_period=0, name=None, gsi_capture={}):
 
         """
         Sewer network data wrapper that performs hydraulic and hydrologic (H&H)
@@ -62,6 +62,7 @@ class SewerNet(object):
 
             #accumulate drainage areas
             G = accumulate_area(G)
+            G = propogate_weighted_C(G, gsi_capture)
             G = resolve_slope_gaps(G)
             G = hhcalcs_on_network(G)
 
@@ -241,8 +242,9 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
         split_frac = d.get('flow_split_frac', 1)
         acres =     (G1.node[u]['total_area_ac'] * split_frac)
         direct_ac = (G1.node[u].get('Shape_Area',0) / 43560.0) * split_frac
-        C =  G1.node[u].get('runoff_coefficient', 0.85)
-        G1.node[u]['runoff_coefficient'] = C #set it if its not there
+        C =  G1.node[u].get('runoff_coefficient_weighted', 0.85)
+
+        #G1.node[u]['runoff_coefficient'] = C #set it if its not there
 
         #grab the tc and path from the upstream node
         tc_path = G1.node[u]['tc_path']
@@ -257,6 +259,8 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
         d['tc'] = tc
         d['intensity'] = intensity
         d['peakQ'] = peakQ
+        d['runoff_coefficient'] = C
+        d['CA'] = G1.node[u].get('CA', None)
 
         #compute the capacity fraction (hack prevent div/0)
         d['capacity_fraction'] = peakQ / max(d['capacity'], 1.0)
@@ -286,6 +290,46 @@ def accumulate_area(G):
             area += pred['total_area_ac'] * G1[p][n].get('flow_split_frac', 1)
 
         G1.node[n]['total_area_ac'] = area
+
+    return G1
+
+def propogate_weighted_C(G, gsi_capture={}):
+
+    """
+    loop through each node and propogate the weighted C from the top to bottom
+    of the shed. where there's a flow split, apply the split fraction to
+    coded in the upstream edge (based on relative sewer capacity).
+    """
+    G1 = G.copy()
+
+    for n in nx.topological_sort(G1):
+        area = sum(get_node_values(G1, [n], ['Shape_Area', 'additional_area']))
+        C = G1.node[n].get('runoff_coefficient', 0.85)
+        area = area / 43560.0 #to acres
+        CA = C * area
+
+        for p in G1.predecessors(n):
+            pred = G1.node[p] #upstream node
+            # area += pred['total_area_ac'] * G1[p][n].get('flow_split_frac', 1)
+            CA += pred['CA'] * G1[p][n].get('flow_split_frac', 1.0)
+
+        # G1.node[n]['total_area_ac'] = area
+        node = G1.node[n]
+        node['CA'] = CA
+
+        #apply GSI capture data at prescribed nodes
+        if n in gsi_capture:
+            frac = gsi_capture[n]['fraction']
+            gsi_C = gsi_capture[n]['C']
+            tot_area = node['total_area_ac']
+            CA = ((1.0-frac)*tot_area*C + frac*tot_area*gsi_C)
+            node['CA'] = CA
+            node['GSI Capture'] = gsi_capture[n]
+
+        if node['total_area_ac'] > 0:
+            node['runoff_coefficient_weighted'] = CA / node['total_area_ac']
+        else:
+            node['runoff_coefficient_weighted'] = C
 
     return G1
 

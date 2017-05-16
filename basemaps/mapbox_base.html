@@ -203,8 +203,10 @@ map.on('load', function() {
     var tc = Math.round(props.tc * 10) / 10
     var q = Math.round(props.peakQ * 10) / 10
     var cap = Math.round(props.capacity * 10) / 10
-    var cap_frac = Math.round(props.capacity_fraction * 10) / 10
+    var cap_frac = Math.round(props.capacity_fraction * 10 * 100) / 10
     var v = Math.round(props.velocity * 10) / 10
+    var CA = Math.round(props.CA * 10) / 10
+    var C = Math.round(props.runoff_coefficient * 100) / 100
 
     var net = 'nodes: [' + props.up_node + '][' + props.dn_node + ']'
     if (props.flow_split_frac) {
@@ -222,7 +224,8 @@ map.on('load', function() {
     var html_message = [
           props.FACILITYID,
           label,
-          'Drainage Area: ' + area + 'ac',
+          'Drainage Area: ' + area + 'ac' + ' (CA:' + CA + ')',
+          'C: ' + C,
           'TC: ' + tc + 'mins',
           'Intsensity: ' + Math.round(props.intensity * 10) / 10 + 'in/hr',
           'Peak Q: ' + q + 'cfs',
