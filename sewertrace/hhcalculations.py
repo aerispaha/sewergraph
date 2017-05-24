@@ -85,6 +85,18 @@ def mannings_velocity(diameter, slope, height=None, width=None, shape="CIR", dat
 
 	return V
 
+def mannings_capacity(diameter, slope, height=None, width=None, shape="CIR"):
+
+	#compute mannings flow in full pipe
+	A = xarea(shape, diameter, height, width)
+	Rh = hydraulic_radius(shape, diameter, height, width)
+	n = get_mannings(shape, diameter)
+	k = (1.49 / n) * math.pow(Rh, 0.667) * A
+
+	Q = k * math.pow(slope/100.0, 0.5)
+
+	return Q
+
 def get_mannings( shape, diameter ):
 	n = 0.015 #default value
 	if ((shape == "CIR" or shape == "CIRCULAR") and (diameter <= 24) ):
@@ -105,7 +117,6 @@ def xarea( shape, diameter, height, width ):
 	else:
 		return 0
 
-
 def hydraulic_radius(shape, diameter, height, width ):
 	#calculate full flow hydraulic radius of pipe
 	#supports circular, egg, and box shape
@@ -115,19 +126,6 @@ def hydraulic_radius(shape, diameter, height, width ):
 		return 0.1931* (height/12.0)
 	elif (shape == "BOX" or shape == "BOX SHAPE"):
 		return (height*width) / (2.0*height + 2.0*width) /12.0
-
-
-def mannings_capacity(diameter, slope, height=None, width=None, shape="CIR"):
-
-	#compute mannings flow in full pipe
-	A = xarea(shape, diameter, height, width)
-	Rh = hydraulic_radius(shape, diameter, height, width)
-	n = get_mannings(shape, diameter)
-	k = (1.49 / n) * math.pow(Rh, 0.667) * A
-
-	Q = k * math.pow(slope/100.0, 0.5)
-
-	return Q
 
 def replacement_sewer_size(design_q, slope):
 	"""
