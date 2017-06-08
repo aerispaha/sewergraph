@@ -69,19 +69,26 @@ class SewerNet(object):
             #accumulating travel times
             G = accumulate_travel_time(G)
 
-        self.G = G
-        self.name = name
 
-        #summary calculations
-        self.top_nodes = [n for n,d in G.in_degree_iter() if d == 0]
-        self.terminal_nodes = [n for n,d in G.out_degree_iter() if d == 0]
-        self.nbunch = None
 
-        if run:
-            self.G = hydrologic_calcs_on_sewers(self.G, return_period=return_period)
-            self.G = analyze_downstream(self.G)
 
-        self.kpi = SewerShedKPI(self)
+            self.G = G
+            self.name = name
+
+            #summary calculations
+            self.top_nodes = [n for n,d in G.in_degree_iter() if d == 0]
+            self.terminal_nodes = [n for n,d in G.out_degree_iter() if d == 0]
+            self.nbunch = None
+
+            if run:
+                self.G = hydrologic_calcs_on_sewers(self.G, return_period=return_period)
+                self.G = analyze_downstream(self.G)
+
+            self.kpi = SewerShedKPI(self)
+        else:
+            self.G = G
+            self.name = name
+            self.update_hydraulics()
 
     def subshed(self, outfall_node=None, outfall_fid=None, name=None):
         """
@@ -307,6 +314,9 @@ def propogate_weighted_C(G, gsi_capture={}):
         C = G1.node[n].get('runoff_coefficient', 0.85)
         area = area / 43560.0 #to acres
         CA = C * area
+
+        #set runoff_coefficient if not already set
+        G1.node[n]['runoff_coefficient'] = C
 
         for p in G1.predecessors(n):
             pred = G1.node[p] #upstream node

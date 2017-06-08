@@ -192,6 +192,7 @@ def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
     i,j = u,v
     up_inv = dn_inv = 0
     length = 1
+    slope = 0
 
     def adjacent_inv(G, n, data_key, upstream=True):
 
@@ -227,7 +228,11 @@ def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
     length = nx.shortest_path_length(G, source=i, target=j, weight='Shape_Leng')
 
     #calculate the slope
-    slope = (up_inv - dn_inv) / length
+    if up_inv and dn_inv is not None:
+        slope = (up_inv - dn_inv) / length
+    else:
+        print 'up/dn inverts not found: ({}, {})'.format(u,v)
+        
     return slope, i, j, length
 
 def resolve_slope_gaps(G):
