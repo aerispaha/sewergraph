@@ -249,15 +249,16 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
         split_frac = d.get('flow_split_frac', 1)
         acres =     (G1.node[u]['total_area_ac'] * split_frac)
         direct_ac = (G1.node[u].get('Shape_Area',0) / 43560.0) * split_frac
-        C =  G1.node[u].get('runoff_coefficient_weighted', 0.85)
+        C = G1.node[u].get('runoff_coefficient', 0.85) #direct area
+        Cwt =  G1.node[u].get('runoff_coefficient_weighted', 0.85)
 
-        #G1.node[u]['runoff_coefficient'] = C #set it if its not there
+        G1.node[u]['runoff_coefficient'] = C #set it if its not there
 
         #grab the tc and path from the upstream node
         tc_path = G1.node[u]['tc_path']
         tc = G1.node[u]['tc']
         intensity = philly_storm_intensity(tc, return_period) #in/hr
-        peakQ = C * intensity * acres # q = C*I*A, (cfs)
+        peakQ = Cwt * intensity * acres # q = C*I*A, (cfs)
 
         #store values in the edge data (sewer reach)
         d['upstream_area_ac'] = acres
@@ -267,6 +268,7 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
         d['intensity'] = intensity
         d['peakQ'] = peakQ
         d['runoff_coefficient'] = C
+        d['runoff_coefficient_weighted'] = Cwt
         d['CA'] = G1.node[u].get('CA', None)
 
         #compute the capacity fraction (hack prevent div/0)
