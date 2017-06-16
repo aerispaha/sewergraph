@@ -70,14 +70,12 @@ drainage_bounds = [
     for line in vor.ridge_vertices
     if -1 not in line
 ]
-<<<<<<< Updated upstream
+
 da_list = [
     da.intersection(study_area)
     for da in shapely.ops.polygonize(drainage_bounds)
 ]
-=======
-da_list = [da.intersection(study_area) for da in shapely.ops.polygonize(drainage_bounds)]
->>>>>>> Stashed changes
+
 
 #convert to wgs projection system
 pa_plane = pyproj.Proj(init='epsg:2272', preserve_units=True)
