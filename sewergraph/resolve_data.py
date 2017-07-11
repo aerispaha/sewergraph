@@ -1,5 +1,5 @@
 from itertools import chain
-from sewertrace import helpers
+from sewergraph import helpers
 import networkx as nx
 from hhcalculations import slope_at_velocity, mannings_velocity
 
