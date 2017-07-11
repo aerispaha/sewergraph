@@ -9,7 +9,7 @@ from kpi import SewerShedKPI
 import cost_estimates
 import os
 
-class SewerNet(object):
+class SewerGraph(object):
     def __init__(self, shapefile=None, G=None, boundary_conditions=None, run=True,
                  return_period=0, name=None, gsi_capture={}):
 
@@ -92,7 +92,7 @@ class SewerNet(object):
 
     def subshed(self, outfall_node=None, outfall_fid=None, name=None):
         """
-        return a SewerNet object with everything upstream of the outfall node
+        return a SewerGraph object with everything upstream of the outfall node
         given by node or FACILITYID
         """
         if outfall_node is not None:
@@ -105,7 +105,7 @@ class SewerNet(object):
         nbunch = nx.ancestors(self.G, tn) | set({tn})
         G = self.G.subgraph(nbunch).copy()
 
-        return SewerNet(G=G, name=name)
+        return SewerGraph(G=G, name=name)
 
     def estimate_sewer_replacement_costs(self, target_cap_frac=1.0):
         """

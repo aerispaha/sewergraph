@@ -9,7 +9,7 @@ class SewerShedKPI(object):
     def __init__(self, net):
 
         """
-        calculate shed-wide KPIs given a SewerNet object
+        calculate shed-wide KPIs given a SewerGraph object
         """
 
         #HYDROLOGIC
