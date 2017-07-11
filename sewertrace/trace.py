@@ -4,7 +4,7 @@ from helpers import (pairwise, open_file,
                      clean_network_data, get_node_values, round_shapefile_node_keys)
 import helpers
 from hhcalculations import philly_storm_intensity, hhcalcs_on_network
-from resolve_data import resolve_geom_gaps, resolve_slope_gaps
+from resolve_data import resolve_geom_gaps, resolve_slope_gaps, assign_inverts
 from kpi import SewerShedKPI
 import cost_estimates
 import os
@@ -187,6 +187,7 @@ class SewerNet(object):
         return an dict of dataframes for junctions, conduits, and coordinates
         elements in a SWMM5 inp
         """
+        self.G = assign_inverts(self.G)
 
         #JUNCTIONS
         df = self.nodes()
@@ -221,10 +222,30 @@ class SewerNet(object):
         conduits['InitFlow'] = 0.0001
         conduits['MaxFlow'] = 0
 
+        #XSECTIONS
+        xsect = self.conduits()
+        xsect = xsect[['PIPESHAPE', 'Diameter', 'Height', 'Width']]
+        shape_map = {'CIR':'CIRCULAR'}
+        xsect = xsect.replace({'PIPESHAPE':shape_map})
+        xsect = xsect.rename(columns={'Diameter':'Geom1', 'Height':'Geom2', 'Width':'Geom3',  'PIPESHAPE':'Shape'})
+
+        #shift the geoms for EGG shaped
+        xsect.loc[xsect.Shape=='EGG', 'Geom1'] = xsect.loc[xsect.Shape=='EGG', 'Geom2']
+        xsect.loc[xsect.Shape=='EGG', 'Geom2'] = xsect.loc[xsect.Shape=='EGG', 'Geom3']
+        xsect.loc[xsect.Shape=='EGG', 'Geom3'] = 0
+        xsect['Geom4'] = 0
+
+        #convert to inches
+        geoms = ['Geom1', 'Geom2', 'Geom3', 'Geom4']
+        xsect[geoms] = xsect[geoms] / 12
+
+        xsect['Barrels'] = 1
+
         return dict(
             conduits = conduits,
             junctions=junctions,
             coordinates = coordinates,
+            xsections = xsect
         )
 
 def add_boundary_conditions(G, data):
