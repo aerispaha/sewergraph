@@ -14,7 +14,10 @@ def preprocess_data(G):
         w = G[u][v]['Width']
 
         #standardize unknowns
-        if geom not in ['BOX', 'CIR', 'EGG'] or sum([diam, h, w]) == 0:
+        if geom not in ['BOX', 'CIR', 'EGG'] or sum(filter(None,
+                                                           [diam, h, w]
+                                                           )
+                                                    ) == 0:
             d['PIPESHAPE'] = None
         elif (geom == 'CIR' and diam == 0 and h > 0 and w > 0):
             # if the geoms don't resemble a circle
