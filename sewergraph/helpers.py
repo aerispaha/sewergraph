@@ -7,6 +7,7 @@ from networkx.readwrite import json_graph
 import json
 from geojson import Feature, LineString, Point, FeatureCollection
 import os, sys, subprocess
+import pandas as pd
 
 def open_file(filename):
     if sys.platform == "win32":
@@ -77,6 +78,17 @@ def clean_dict(mydict, keep_keys=None, rm_keys=None):
             if k in rm_keys:
                 del mydict[k]
 
+def rename_duplicates(series):
+    #rename duplicate FACILITYIDs
+    cols=pd.Series(series)
+    for dup in series.get_duplicates():
+        cols[series.get_loc(dup)]=[dup+'.'+str(d_idx)
+                                           if d_idx!=0 else dup
+                                           for d_idx in range(
+                                               series.get_loc(dup).sum()
+                                               )]
+    return cols
+
 def round_shapefile_node_keys(G):
     """
     nodes read in via nx.read_shp() are labeled as tuples representing the
@@ -105,7 +117,7 @@ def clean_network_data(G):
                             'Slope', 'Shape_Leng', 'Year_Insta', 'PIPESHAPE',
                             'PIPE_TYPE', 'STICKERLIN', 'LABEL','ELEVATION_',
                             'ELEVATIONI','slope_calculated',
-                            'slope_calculated_fids']
+                            'slope_calculated_fids', 'Shape_Area']
         clean_dict(G1.node[u], node_keeper_keys)
         clean_dict(G1.node[v], node_keeper_keys)
         clean_dict(d, edge_keeper_keys)

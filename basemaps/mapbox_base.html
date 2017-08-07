@@ -4,8 +4,8 @@
     <meta charset='utf-8' />
     <title></title>
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
-    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.32.1/mapbox-gl.js'></script>
-    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.32.1/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.39.1/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.39.1/mapbox-gl.css' rel='stylesheet' />
     <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
     <style>
         body { margin:0; padding:0; }
@@ -83,20 +83,26 @@ map.on('load', function() {
           'line-color': {
               property: 'capacity_fraction',
               stops: [
-                // [5, '#64bab4'],
-                // [50, '#4dbc49'],
-                // [100, '#8764ba'],
-                // [300  , '#cc5151'],
-                // [500, '#ea30e4']
                 [0, '#50716c'],
-                // [0.02, '#343332'],
                 [0.50, '#64bab4'],
-                [2.00  ,'#c94242'],//'#cc0000'],
+                [2.00  ,'#c94242'],
                 [5.00, '#ea30e4']
               ]
         },
-          'line-opacity': 0.75,
-  	      'line-width':3,
+          'line-opacity': 1,//0.75,
+  	      'line-width':{
+            property: 'upstream_area_ac',
+            stops: [
+              [0,  0.25],
+              [10, 3],
+              [200, 5],
+              [5000, 25]
+            ]
+          },
+      },
+      'layout':{
+        // 'line-join':'round',
+        'line-cap':'round',
       },
       'filter':["!has", "flow_split"],
 	});

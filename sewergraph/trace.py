@@ -206,6 +206,9 @@ class SewerGraph(object):
         #CONDUITS
         conduits = self.conduits()
 
+        #shorten conduit id
+        conduits.index = [i[1:7] for i in conduits.index]
+
         #rename duplicate FACILITYIDs
         cols=pd.Series(conduits.index)
         for dup in conduits.index.get_duplicates():
@@ -224,6 +227,7 @@ class SewerGraph(object):
 
         #XSECTIONS
         xsect = self.conduits()
+        xsect.index = cols
         xsect = xsect[['PIPESHAPE', 'Diameter', 'Height', 'Width']]
         shape_map = {'CIR':'CIRCULAR'}
         xsect = xsect.replace({'PIPESHAPE':shape_map})
