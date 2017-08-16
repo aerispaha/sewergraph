@@ -155,7 +155,7 @@ class SewerGraph(object):
         df = pd.DataFrame(data=data, index=self.G.nodes())
         return df
 
-    def to_map(self, filename=None, startfile=True, phs_area=False):
+    def to_map(self, filename=None, startfile=True, phs_area=False, inproj='epsg:2272'):
 
         if filename is None:
             filename = os.path.join(shapefile_path, 'map.html')
@@ -166,13 +166,13 @@ class SewerGraph(object):
                          for n, d in self.G.nodes_iter(data=True)
                          if 'FACILITYID' in d]
             lyrs = dict(
-                conduits = helpers.write_geojson(self.G),
+                conduits = helpers.write_geojson(self.G, inproj=inproj),
                 phs_sheds = phs_rates
             )
             helpers.create_html_map(lyrs, filename, self.G,'phs_sheds.html')
             print 'phs yea'
         else:
-            lyrs = dict(conduits = helpers.write_geojson(self.G))
+            lyrs = dict(conduits = helpers.write_geojson(self.G, inproj=inproj))
             helpers.create_html_map(lyrs, filename, self.G)
 
 
