@@ -7,5 +7,6 @@
 
 from .core import *
 from .helpers import *
+from .area_calcs import *
 
 __version__ = '0.0.4'
