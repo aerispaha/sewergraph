@@ -29,10 +29,13 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
     ]
 
     #create a study area boundary to clip to Voronoi polygons to
-    study_area_df = gpd.read_file(r'shapefiles', layer='study_area_bounds')
-    study_area = study_area_df.loc[0, 'geometry']
-    study_area_buff = study_area_df.convex_hull.buffer(distance=5000)
-    border_pts = [xy for xy in study_area_buff.loc[0].boundary.coords]
+    # study_area_df = gpd.read_file(r'shapefiles', layer='study_area_bounds')
+    # study_area = study_area_df.loc[0, 'geometry']
+
+    # shps.convex_hull.buffer(100)
+    study_area = sewer_shapes.convex_hull
+    study_area_buff = sewer_shapes.convex_hull.buffer(distance=5000)
+    border_pts = [xy for xy in study_area_buff.boundary.coords]
 
     #create Voronoi object
     vor = Voronoi(pts+border_pts)

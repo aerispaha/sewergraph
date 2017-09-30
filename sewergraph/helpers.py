@@ -8,6 +8,13 @@ import json
 from geojson import Feature, LineString, Point, FeatureCollection
 import os, sys, subprocess
 import pandas as pd
+import uuid
+
+def generate_facility_id(length = 8):
+    """
+    Generate a facility id (random alpha numeric)
+    """
+    return str(uuid.uuid4()).upper()[:8]
 
 def open_file(filename):
     if sys.platform == "win32":
