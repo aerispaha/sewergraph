@@ -8,6 +8,17 @@ from rasterstats import zonal_stats, point_query
 import ogr, osr, gdal
 import os
 
+
+def map_area_to_sewers(G, areas, idcol='FACILITYID'):
+    a = areas.set_index(idcol)
+    vanids = van[[idcol, 'u', 'v']]
+
+    a = a.join(vanids)
+    a = a.set_index(['u', 'v'])[['local_area']].T.apply(tuple).to_dict('records')[0]
+    nx.set_edge_attributes(G, 'local_area', a)
+    return G
+    
+
 def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None):
 
     """
