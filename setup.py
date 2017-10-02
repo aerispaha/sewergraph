@@ -6,17 +6,19 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
-VERSION = '0.0.3.1'  # also update __init__.py
+VERSION = '0.0.4'  # also update __init__.py
 AUTHOR_NAME = 'Adam Erispaha'
 AUTHOR_EMAIL = 'aerispaha@gmail.com'
 
 install_requires = [
-    'networkx',
+    'networkx=1.11',
     'pandas',
+    'geopandas'
     'numpy',
     'geojson',
     'plotly',
     'pyproj'
+    'shapely'
     ]
 
 setup(name='sewergraph',

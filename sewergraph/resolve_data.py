@@ -201,7 +201,7 @@ def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
 
         #use the up/dn invs from the node having the highest accumulated area
         data = dfs_nodes_attributes(G,n,data_key,upstream)
-        invs = [(d['total_area_ac'], d[data_key], n) for n,d in data]
+        invs = [(d['cumulative_area'], d[data_key], n) for n,d in data]
         invs.sort(reverse=True)
         if len(invs) > 0:
             _, up_inv, ajd_n = invs[0]

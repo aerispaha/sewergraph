@@ -117,14 +117,14 @@ def clean_network_data(G):
     G1.remove_nodes_from(nx.isolates(G1))
 
     for u,v,d in G1.edges_iter(data=True):
-        node_keeper_keys = ['X_Coord', 'Y_Coord','total_area_ac',
-                            'Shape_Area', 'FACILITYID', 'ELEVATION_', 'ELEVATIONI',
+        node_keeper_keys = ['X_Coord', 'Y_Coord','cumulative_area',
+                            'local_area', 'FACILITYID', 'ELEVATION_', 'ELEVATIONI',
                             'FacilityNa', 'RASTERVALU']
         edge_keeper_keys = ['Diameter', 'Height','Width', 'FACILITYID','Json',
                             'Slope', 'Shape_Leng', 'Year_Insta', 'PIPESHAPE',
                             'PIPE_TYPE', 'STICKERLIN', 'LABEL','ELEVATION_',
                             'ELEVATIONI','slope_calculated',
-                            'slope_calculated_fids', 'Shape_Area']
+                            'slope_calculated_fids', 'local_area']
         clean_dict(G1.node[u], node_keeper_keys)
         clean_dict(G1.node[v], node_keeper_keys)
         clean_dict(d, edge_keeper_keys)

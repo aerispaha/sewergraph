@@ -54,7 +54,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
     #create GeoDataFrame of shed pieces
     shed_geoms = [g for g in shed_pieces.geoms]
     shed_areas_sf = [shed.area for shed in shed_geoms]
-    sheds = gpd.GeoDataFrame(geometry=shed_geoms, data={'Shape_Area':shed_areas_sf})
+    sheds = gpd.GeoDataFrame(geometry=shed_geoms, data={'local_area':shed_areas_sf})
 
     #set crs and create a subshed id column
     sheds.crs = {'init':'epsg:2272'}

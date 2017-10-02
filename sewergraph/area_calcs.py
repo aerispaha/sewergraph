@@ -8,15 +8,12 @@ from rasterstats import zonal_stats, point_query
 import ogr, osr, gdal
 import os
 
-def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
+def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None):
 
     """
     create a GeoDataFrame of polygons representing sewersheds. Shed boundaries are
     created based on Voronoi polygons about each sewer segment.
     """
-    #import into a GeoDataFrame
-    #pth = r'trace_shapefiles'
-    #sewersdf = gpd.read_file(pth, layer='sw_gravmains_2')
 
     #create a Shapely object
     sewer_shapes = MultiLineString([g for g in sewersdf.geometry])
@@ -29,12 +26,11 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
     ]
 
     #create a study area boundary to clip to Voronoi polygons to
-    # study_area_df = gpd.read_file(r'shapefiles', layer='study_area_bounds')
-    # study_area = study_area_df.loc[0, 'geometry']
 
     # shps.convex_hull.buffer(100)
-    study_area = sewer_shapes.convex_hull
-    study_area_buff = sewer_shapes.convex_hull.buffer(distance=5000)
+    if study_area is None:
+        study_area = sewer_shapes.convex_hull
+    study_area_buff = study_area.buffer(distance=5000)
     border_pts = [xy for xy in study_area_buff.boundary.coords]
 
     #create Voronoi object
@@ -56,7 +52,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
     #create GeoDataFrame of shed pieces
     shed_geoms = [g for g in shed_pieces.geoms]
     shed_areas_sf = [shed.area for shed in shed_geoms]
-    sheds = gpd.GeoDataFrame(geometry=shed_geoms, data={'Shape_Area':shed_areas_sf})
+    sheds = gpd.GeoDataFrame(geometry=shed_geoms, data={'local_area':shed_areas_sf})
 
     #set crs and create a subshed id column
     sheds.crs = {'init':'epsg:2272'}
@@ -67,9 +63,10 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
     sewer_sheds = gpd.sjoin(sheds, sewersdf, how='inner')
     sewer_sheds = sewer_sheds.drop_duplicates(subset='SUBSHED_ID')
 
-    #dissolve by sewer FACILITYID, add area column
+    #dissolve by sewer FACILITYID, add local_area column
     sewer_sheds = sewer_sheds.dissolve(by=SEWER_ID_COL, aggfunc='sum', as_index=False)
-    sewer_sheds = sewer_sheds[[SEWER_ID_COL, 'geometry']] #drop unnecessary cols
+    sewer_sheds = sewer_sheds[[SEWER_ID_COL, 'local_area', 'geometry']] #drop unnecessary cols
+    # sewer_sheds = sewer_sheds.assign(local_area = sewer_sheds.geometry.area)
 
     return sewer_sheds
 

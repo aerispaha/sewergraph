@@ -1,5 +1,6 @@
 import networkx as nx
 import pandas as pd
+import geopandas as gp
 from helpers import (pairwise, open_file,
                      clean_network_data, get_node_values, round_shapefile_node_keys)
 import helpers
@@ -8,6 +9,34 @@ from resolve_data import resolve_geom_gaps, resolve_slope_gaps, assign_inverts
 from kpi import SewerShedKPI
 import cost_estimates
 import os
+
+def graph_from_shp(pth=r'test_processed_01', idcol='FACILITYID'):
+    
+    G = nx.read_shp(pth)
+    G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
+
+    for u,v,d in G.edges(data=True):
+
+        #create a shapely line geometry object
+        d['geometry'] = wkt.loads(d['Wkt'])
+
+        #get rid of other geom formats
+        del d['Wkb'], d['Wkt'], d['Json']
+
+        #generate a uniq id if necessary
+        if idcol not in d:
+            d[idcol] = sg.helpers.generate_facility_id()
+
+    return G
+
+def gdf_from_graph(G):
+    """
+    create a GeoDataFrame from a drainx graph.
+    Hacky way to get u and v into the df right now...
+    """
+    fids = [d['FACILITYID'] for u,v,d in G.edges(data=True)]
+    data = [dict(d.items()+{'u':u, 'v':v}.items()) for u,v,d in G.edges(data=True)]
+    return gp.GeoDataFrame(data=data, index=fids)
 
 class SewerGraph(object):
     def __init__(self, shapefile=None, G=None, boundary_conditions=None, run=True,
@@ -24,10 +53,10 @@ class SewerGraph(object):
         shapefile : string
             path to directory containing a shapefile(s) of spatial sewer
             data and manhole data (or other point spatial data) that connect
-            sewers and contain a Shape_Area (square feet) field representing the drainage
-            area attributed to that node. The Shape_Area field may be obtained
+            sewers and contain a local_area (square feet) field representing the drainage
+            area attributed to that node. The local_area field may be obtained
             by creating Theissen polygons around each point and joining the
-            polygons' Shape_Area to the manhole attributes.
+            polygons' local_area to the manhole attributes.
 
         boundary_conditions : dict of dicts, default None
             additional data to join to point shapefiles based on a GUID
@@ -84,7 +113,7 @@ class SewerGraph(object):
                 self.G = hydrologic_calcs_on_sewers(self.G, return_period=return_period)
                 self.G = analyze_downstream(self.G)
 
-            self.kpi = SewerShedKPI(self)
+            # self.kpi = SewerShedKPI(self)
         else:
             self.G = G
             self.name = name
@@ -126,7 +155,7 @@ class SewerGraph(object):
         # self.G = accumulate_travel_time(self.G)
         self.G = hydrologic_calcs_on_sewers(self.G, return_period=return_period)
         self.G = analyze_downstream(self.G)
-        self.kpi = SewerShedKPI(self)
+        # self.kpi = SewerShedKPI(self)
 
     def assign_runoff_coefficient(self, C, manhole_fids=None):
         """
@@ -272,8 +301,8 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
         #grab the upstream node's total and direct area,
         #and apply any flow split fraction
         split_frac = d.get('flow_split_frac', 1)
-        acres =     (G1.node[u]['total_area_ac'] * split_frac)
-        direct_ac = (G1.node[u].get('Shape_Area',0) / 43560.0) * split_frac
+        direct_ac = (G1[u][v].get('local_area',0) / 43560.0) * split_frac
+        acres =     (G1.node[u]['cumulative_area'] * split_frac / 43560.0) + direct_ac
         C = G1.node[u].get('runoff_coefficient', 0.85) #direct area
         Cwt =  G1.node[u].get('runoff_coefficient_weighted', 0.85)
 
@@ -287,7 +316,7 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
 
         #store values in the edge data (sewer reach)
         d['upstream_area_ac'] = acres
-        d['direct_area_ac'] = direct_ac
+        d['local_area_ac'] = direct_ac
         d['tc_path'] = tc_path
         d['tc'] = tc
         d['intensity'] = intensity
@@ -316,14 +345,19 @@ def accumulate_area(G):
     G1 = G.copy()
 
     for n in nx.topological_sort(G1):
-        area = sum(get_node_values(G1, [n], ['Shape_Area', 'additional_area']))
+        area = sum(get_node_values(G1, [n], ['local_area', 'additional_area']))
         area = area / 43560.0 #to acres
 
         for p in G1.predecessors(n):
             pred = G1.node[p] #upstream node
-            area += pred['total_area_ac'] * G1[p][n].get('flow_split_frac', 1)
 
-        G1.node[n]['total_area_ac'] = area
+            #add cumulative area in upstream node, apply flow split fraction
+            area += pred['cumulative_area'] * G1[p][n].get('flow_split_frac', 1)
+
+            #add area routed directly to sewer
+            area += G1[p][n].get('local_area', 0)
+
+        G1.node[n]['cumulative_area'] = area
 
     return G1
 
@@ -337,7 +371,7 @@ def propogate_weighted_C(G, gsi_capture={}):
     G1 = G.copy()
 
     for n in nx.topological_sort(G1):
-        area = sum(get_node_values(G1, [n], ['Shape_Area', 'additional_area']))
+        area = sum(get_node_values(G1, [n], ['local_area', 'additional_area']))
         C = G1.node[n].get('runoff_coefficient', 0.85)
         area = area / 43560.0 #to acres
         CA = C * area
@@ -347,10 +381,13 @@ def propogate_weighted_C(G, gsi_capture={}):
 
         for p in G1.predecessors(n):
             pred = G1.node[p] #upstream node
-            # area += pred['total_area_ac'] * G1[p][n].get('flow_split_frac', 1)
+            # area += pred['cumulative_area'] * G1[p][n].get('flow_split_frac', 1)
             CA += pred['CA'] * G1[p][n].get('flow_split_frac', 1.0)
 
-        # G1.node[n]['total_area_ac'] = area
+            #add area routed directly to sewer
+            CA += G1[p][n].get('local_area', 0) * G1[p][n].get('runoff_coefficient', 0.85)
+
+        # G1.node[n]['cumulative_area'] = area
         node = G1.node[n]
         node['CA'] = CA
 
@@ -358,13 +395,13 @@ def propogate_weighted_C(G, gsi_capture={}):
         if n in gsi_capture:
             frac = gsi_capture[n]['fraction']
             gsi_C = gsi_capture[n]['C']
-            tot_area = node['total_area_ac']
+            tot_area = node['cumulative_area']
             CA = ((1.0-frac)*tot_area*C + frac*tot_area*gsi_C)
             node['CA'] = CA
             node['GSI Capture'] = gsi_capture[n]
 
-        if node['total_area_ac'] > 0:
-            node['runoff_coefficient_weighted'] = CA / node['total_area_ac']
+        if node['cumulative_area'] > 0:
+            node['runoff_coefficient_weighted'] = CA / node['cumulative_area']
         else:
             node['runoff_coefficient_weighted'] = C
 
