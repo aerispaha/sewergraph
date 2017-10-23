@@ -9,12 +9,30 @@
     <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
     <style>
         body { margin:0; padding:0; }
-        #map { position:absolute; top:0; bottom:0; width:100%; }
+        /*#map { position:absolute; top:0; bottom:0; width:100%; }*/
+        .fullscreen { position:absolute; top:0; bottom:0; width:100%; }
     </style>
 </head>
 <body>
 
-<div id='map'></div>
+  <!-- <div class='col12 pad4 contain fill-navy dark'>
+    <div id='map' class='center quiet'></div>
+
+    <div class='col4 pad2 fill-darken1 pin-left'>
+      Left panel with content
+    </div>
+  </div> -->
+<!-- <div id='map'></div> -->
+<div class='fullscreen' class='col12 pad4 contain fill-navy dark clip'>
+  <!-- <div class='center quiet'>Map Canvas</div> -->
+  <div id='map' class='fullscreen'></div>
+  <!-- <div class='pin-right pad2'>
+    <a href='#details-pane' class='button'>Trigger</a>
+  </div> -->
+  <div id='details-pane' class='col4 pad2 fill-darken1 pin-left offcanvas-left animate'>
+    <a href='#' class='fill-darken2 pad1 icon close'></a>
+  </div>
+</div>
 
 <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
@@ -170,12 +188,18 @@ map.on('load', function() {
 
         var features = map.queryRenderedFeatures(clickbox, { layers: ['sewer', 'sewer-splits'] });
         if (!features.length) {
+            // nothing clickable was clicked, return to default view
 			      map.setFilter("sewer-hover", ["==", "FACILITYID", ""]);
             map.setFilter("sewer-tc", ["in", "dn_node", ""]);
             map.setFilter("sheds", ["==", "FACILITYID", ""]);
             map.setFilter("sewer-limiting", ["==", "FACILITYID", ""]);
             // map.setFilter("sewer-descendants", ["==", "FACILITYID", ""]);
+
+            //hide the detail pane
+            $('#details-pane').removeClass('active');
             return;
+        }else {
+          $('#details-pane').addClass('active');
         }
 
         var feature = features[0];

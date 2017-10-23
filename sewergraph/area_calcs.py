@@ -17,13 +17,15 @@ def map_area_to_sewers(G, areas, idcol='FACILITYID'):
     a = a.set_index(['u', 'v'])[['local_area']].T.apply(tuple).to_dict('records')[0]
     nx.set_edge_attributes(G, 'local_area', a)
     return G
-    
+
 
 def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None):
 
     """
     create a GeoDataFrame of polygons representing sewersheds. Shed boundaries are
     created based on Voronoi polygons about each sewer segment.
+
+    study_area: Shapely polygon
     """
 
     #create a Shapely object

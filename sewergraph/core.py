@@ -11,7 +11,10 @@ import cost_estimates
 import os
 
 def graph_from_shp(pth=r'test_processed_01', idcol='FACILITYID'):
-    
+
+    #import well-known-text load func
+    from shapely import wkt
+
     G = nx.read_shp(pth)
     G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
 
