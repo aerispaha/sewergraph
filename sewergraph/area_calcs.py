@@ -83,6 +83,18 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None):
 
     return sewer_sheds
 
+def apportion_overlays(zones, overlay, overlay_field='FCODE'):
+    df = zones[:]
+    #total_area = df.geometry.area / 43650
+
+    for cat in overlay[overlay_field].unique():
+        frac = calculate_overlay_fraction(zones, overlay, overlay_field=overlay_field, overlay_category=cat)
+        #this to avoid CopyWithSetting warning, and bc assign() doesn't accept normal vars
+        kwargs = {str(cat) : frac}
+
+        df = df.assign(**kwargs)
+
+    return df
 
 def overlay_proportion(row, df, overlay_field, overlay_category):
         """
