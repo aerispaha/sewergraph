@@ -19,7 +19,8 @@ def map_area_to_sewers(G, areas, idcol='FACILITYID'):
     return G
 
 
-def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None):
+def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
+                               min_length=35):
 
     """
     create a GeoDataFrame of polygons representing sewersheds. Shed boundaries are
@@ -28,14 +29,18 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None):
     study_area: Shapely polygon
     """
 
+    #include only sewers of the minumum desired length
+    sewersdf1 = sewersdf.loc[sewersdf.length > min_length]
+
     #create a Shapely object
-    sewer_shapes = MultiLineString([g for g in sewersdf.geometry])
+    sewer_shapes = MultiLineString([g for g in sewersdf1.geometry])
 
     #array of points to be used in Voronoi generation
+    #create 16 points per 100' of sewer
     pts = [
         (sewer.interpolate(pt, normalized=True).x, sewer.interpolate(pt, normalized=True).y)
-        for pt in np.linspace(0.1, 1, 16)
-        for sewer in sewer_shapes if sewer.length > 35
+        for pt in np.linspace(0, 1, int(16*sewer.length / 100))
+        for sewer in sewer_shapes if sewer.length > min_length
     ]
 
     #create a study area boundary to clip to Voronoi polygons to
@@ -72,8 +77,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None):
     sheds['SUBSHED_ID'] = sheds.index
 
     #spatially join the subsheds to the sewers, drop duplicates (sheds touching multiple sewers)
-    # sewersdf = sewersdf[[SEWER_ID_COL, 'geometry']]
-    sewer_sheds = gpd.sjoin(sheds, sewersdf, how='inner')
+    sewer_sheds = gpd.sjoin(sheds, sewersdf1, how='inner')
     sewer_sheds = sewer_sheds.drop_duplicates(subset='SUBSHED_ID')
 
     #dissolve by sewer FACILITYID, add local_area column
@@ -82,6 +86,81 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None):
     # sewer_sheds = sewer_sheds.assign(local_area = sewer_sheds.geometry.area)
 
     return sewer_sheds
+
+def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
+                               min_length=35):
+
+    all_sheds = gp.GeoDataFrame()
+
+    for study_area in study_area_chunks.geometry.tolist():
+
+        #include only sewers of the minumum desired length, within the study area
+        sewersdf1 = sewersdf.loc[sewersdf.length > min_length]
+        sewersdf1 = sewersdf1[sewersdf1.intersects(study_area.buffer(distance=400))]
+
+        #sewers to focus on
+        sewersdf2 = sewersdf1[sewersdf1.intersects(study_area)]
+
+        #create a Shapely object
+        sewer_shapes = MultiLineString([g for g in sewersdf1.geometry])
+
+        #array of points to be used in Voronoi generation
+        #create 16 points per 100' of sewer
+        pts = [
+            (sewer.interpolate(pt, normalized=True).x, sewer.interpolate(pt, normalized=True).y)
+            for pt in np.linspace(0, 1, int(16*sewer.length / 100))
+            for sewer in sewer_shapes if sewer.length > min_length
+        ]
+
+        #create a study area boundary to clip to Voronoi polygons to
+
+        # shps.convex_hull.buffer(100)
+        if study_area is None:
+            study_area = sewer_shapes.convex_hull
+        study_area_buff = study_area.buffer(distance=5000)
+        border_pts = [xy for xy in study_area_buff.boundary.coords]
+
+        #create Voronoi object
+        vor = Voronoi(pts+border_pts)
+
+        #create shapely LineStrings of drainage areas boundaries
+        drainage_bounds = [
+            LineString(vor.vertices[line])
+            for line in vor.ridge_vertices
+            if -1 not in line
+        ]
+
+        #create a list of drainage area polygons and clip them (via intersection) to the study_area
+        #da_list = [da.intersection(study_area.buffer(distance=100)) for da in shapely.ops.polygonize(drainage_bounds)]
+        da_list = [da for da in shapely.ops.polygonize(drainage_bounds)]
+
+        if da_list:
+            #creat a MultiPloygon shapely object
+            shed_pieces = shapely.geometry.MultiPolygon(da_list)
+
+            #create GeoDataFrame of shed pieces
+            shed_geoms = [g for g in shed_pieces.geoms]
+            shed_areas_sf = [shed.area for shed in shed_geoms]
+            sheds = gp.GeoDataFrame(geometry=shed_geoms, data={'local_area':shed_areas_sf})
+
+            #set crs and create a subshed id column
+            sheds.crs = sewersdf1.crs #{'init':'epsg:2272'}
+            sheds['SUBSHED_ID'] = sheds.index
+
+            #spatially join the subsheds to the sewers, drop duplicates (sheds touching multiple sewers)
+            sewer_sheds = gp.sjoin(sheds, sewersdf1, how='inner')
+            sewer_sheds = sewer_sheds.drop_duplicates(subset='SUBSHED_ID')
+
+            #dissolve by sewer FACILITYID, add local_area column
+            sewer_sheds = sewer_sheds.dissolve(by=SEWER_ID_COL, aggfunc='sum', as_index=False)
+            sewer_sheds = sewer_sheds[[SEWER_ID_COL, 'local_area', 'geometry']] #drop unnecessary cols
+
+            #select only the sheds for the focus sewers
+            sewer_sheds = sewer_sheds[sewer_sheds.FACILITYID.isin(sewersdf2.FACILITYID)]
+
+            all_sheds = all_sheds.append(sewer_sheds)
+
+        return all_sheds
 
 def apportion_overlays(zones, overlay, overlay_field='FCODE'):
     df = zones[:]
