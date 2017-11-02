@@ -456,7 +456,8 @@ def accumulate_travel_time(G):
     return G1
 
 
-def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
+def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None,
+                       parameter='capacity_per_ac'):
     """
     Assign terminal nodes to each node in the network, then find the limiting
     sewer reach between each node and its terminal node.
@@ -474,12 +475,12 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None):
         G1.node[tn]['limiting_sewer'] = None
 
         for p in G1.predecessors(tn):
-            G1[p][tn]['limiting_rate'] = G1[p][tn]['capacity_per_ac']
+            G1[p][tn]['limiting_rate'] = G1[p][tn][parameter]
 
     for n in nx.topological_sort(G1, reverse=True):
         dn_node_rates = [(G1.node[s]['limiting_rate'],
                           G1.node[s]['limiting_sewer']) for s in G1.successors(n)]
-        dn_edge_rates = [(G1[n][s]['capacity_per_ac'],
+        dn_edge_rates = [(G1[n][s][parameter],
                           G1[n][s]['FACILITYID']) for s in G1.successors(n)]
         dn_rates = dn_node_rates + dn_edge_rates
 

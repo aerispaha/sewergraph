@@ -36,11 +36,11 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     sewer_shapes = MultiLineString([g for g in sewersdf1.geometry])
 
     #array of points to be used in Voronoi generation
-    #create 16 points per 100' of sewer
+    #create points spaced at 10 feet of sewer
     pts = [
-        (sewer.interpolate(pt, normalized=True).x, sewer.interpolate(pt, normalized=True).y)
-        for pt in np.linspace(0, 1, int(16*sewer.length / 100))
-        for sewer in sewer_shapes if sewer.length > min_length
+        (sewer.interpolate(pt).x, sewer.interpolate(pt).y)
+        for sewer in sewer_shapes
+        for pt in np.arange(0, sewer.length, 10.)
     ]
 
     #create a study area boundary to clip to Voronoi polygons to
@@ -90,7 +90,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
 def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
                                min_length=35):
 
-    all_sheds = gp.GeoDataFrame()
+    all_sheds = gpd.GeoDataFrame()
 
     for study_area in study_area_chunks.geometry.tolist():
 
@@ -105,11 +105,11 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
         sewer_shapes = MultiLineString([g for g in sewersdf1.geometry])
 
         #array of points to be used in Voronoi generation
-        #create 16 points per 100' of sewer
+        #create points spaced at 10 feet of sewer
         pts = [
-            (sewer.interpolate(pt, normalized=True).x, sewer.interpolate(pt, normalized=True).y)
-            for pt in np.linspace(0, 1, int(16*sewer.length / 100))
-            for sewer in sewer_shapes if sewer.length > min_length
+            (sewer.interpolate(pt).x, sewer.interpolate(pt).y)
+            for sewer in sewer_shapes
+            for pt in np.arange(0, sewer.length, 10.)
         ]
 
         #create a study area boundary to clip to Voronoi polygons to
@@ -141,14 +141,14 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
             #create GeoDataFrame of shed pieces
             shed_geoms = [g for g in shed_pieces.geoms]
             shed_areas_sf = [shed.area for shed in shed_geoms]
-            sheds = gp.GeoDataFrame(geometry=shed_geoms, data={'local_area':shed_areas_sf})
+            sheds = gpd.GeoDataFrame(geometry=shed_geoms, data={'local_area':shed_areas_sf})
 
             #set crs and create a subshed id column
             sheds.crs = sewersdf1.crs #{'init':'epsg:2272'}
             sheds['SUBSHED_ID'] = sheds.index
 
             #spatially join the subsheds to the sewers, drop duplicates (sheds touching multiple sewers)
-            sewer_sheds = gp.sjoin(sheds, sewersdf1, how='inner')
+            sewer_sheds = gpd.sjoin(sheds, sewersdf1, how='inner')
             sewer_sheds = sewer_sheds.drop_duplicates(subset='SUBSHED_ID')
 
             #dissolve by sewer FACILITYID, add local_area column
