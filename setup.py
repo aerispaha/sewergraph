@@ -11,14 +11,14 @@ AUTHOR_NAME = 'Adam Erispaha'
 AUTHOR_EMAIL = 'aerispaha@gmail.com'
 
 install_requires = [
-    'networkx=1.11',
+    'networkx==1.11',
     'pandas',
-    'geopandas'
+    'geopandas',
     'numpy',
     'geojson',
     'plotly',
-    'pyproj'
-    'shapely'
+    'pyproj',
+    'shapely',
     ]
 
 setup(name='sewergraph',
