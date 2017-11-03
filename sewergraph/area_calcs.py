@@ -85,6 +85,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     sewer_sheds = sewer_sheds[[SEWER_ID_COL, 'local_area', 'geometry']] #drop unnecessary cols
     # sewer_sheds = sewer_sheds.assign(local_area = sewer_sheds.geometry.area)
 
+    sewer_sheds.crs =  sewersdf.crs
     return sewer_sheds
 
 def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
@@ -92,11 +93,12 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
 
     all_sheds = gpd.GeoDataFrame()
 
-    for study_area in study_area_chunks.geometry.tolist():
-
+    for study_area in study_area_chunks.geometry:
+        print ('study_area processing')
         #include only sewers of the minumum desired length, within the study area
         sewersdf1 = sewersdf.loc[sewersdf.length > min_length]
         sewersdf1 = sewersdf1[sewersdf1.intersects(study_area.buffer(distance=400))]
+        # sewersdf1 = sewersdf1[sewersdf1.intersects(study_area)]
 
         #sewers to focus on
         sewersdf2 = sewersdf1[sewersdf1.intersects(study_area)]
@@ -131,7 +133,7 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
         ]
 
         #create a list of drainage area polygons and clip them (via intersection) to the study_area
-        #da_list = [da.intersection(study_area.buffer(distance=100)) for da in shapely.ops.polygonize(drainage_bounds)]
+        # da_list = [da.intersection(study_area) for da in shapely.ops.polygonize(drainage_bounds)]
         da_list = [da for da in shapely.ops.polygonize(drainage_bounds)]
 
         if da_list:
@@ -160,7 +162,9 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
 
             all_sheds = all_sheds.append(sewer_sheds)
 
-        return all_sheds
+    all_sheds.crs = sewersdf.crs
+
+    return all_sheds
 
 def apportion_overlays(zones, overlay, overlay_field='FCODE'):
     df = zones[:]
