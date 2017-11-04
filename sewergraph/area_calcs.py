@@ -92,7 +92,7 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
                                min_length=35):
 
     all_sheds = gpd.GeoDataFrame()
-
+    study_boundary = study_area_chunks.unary_union
     for study_area in study_area_chunks.geometry:
         print ('study_area processing')
         #include only sewers of the minumum desired length, within the study area
@@ -133,7 +133,8 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
         ]
 
         #create a list of drainage area polygons and clip them (via intersection) to the study_area
-        # da_list = [da.intersection(study_area) for da in shapely.ops.polygonize(drainage_bounds)]
+        # da_list = [da.intersection(study_boundary) for da
+        #            in shapely.ops.polygonize(drainage_bounds)]
         da_list = [da for da in shapely.ops.polygonize(drainage_bounds)]
 
         if da_list:
@@ -142,8 +143,8 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
 
             #create GeoDataFrame of shed pieces
             shed_geoms = [g for g in shed_pieces.geoms]
-            shed_areas_sf = [shed.area for shed in shed_geoms]
-            sheds = gpd.GeoDataFrame(geometry=shed_geoms, data={'local_area':shed_areas_sf})
+            #shed_areas_sf = [shed.area for shed in shed_geoms]
+            sheds = gpd.GeoDataFrame(geometry=shed_geoms)#, data={'local_area':shed_areas_sf})
 
             #set crs and create a subshed id column
             sheds.crs = sewersdf1.crs #{'init':'epsg:2272'}
@@ -155,13 +156,17 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
 
             #dissolve by sewer FACILITYID, add local_area column
             sewer_sheds = sewer_sheds.dissolve(by=SEWER_ID_COL, aggfunc='sum', as_index=False)
-            sewer_sheds = sewer_sheds[[SEWER_ID_COL, 'local_area', 'geometry']] #drop unnecessary cols
+            sewer_sheds = sewer_sheds[[SEWER_ID_COL, 'geometry']] #drop unnecessary cols
 
             #select only the sheds for the focus sewers
             sewer_sheds = sewer_sheds[sewer_sheds.FACILITYID.isin(sewersdf2.FACILITYID)]
 
             all_sheds = all_sheds.append(sewer_sheds)
 
+    #dissolve once more, apply crs, calculate area
+    all_sheds = all_sheds.dissolve(by=SEWER_ID_COL, aggfunc='sum', as_index=False)
+    local_areas = all_sheds.apply(lambda r: r.geometry.area, axis=1)
+    all_sheds = all_sheds.assign(local_area = local_areas)
     all_sheds.crs = sewersdf.crs
 
     return all_sheds
