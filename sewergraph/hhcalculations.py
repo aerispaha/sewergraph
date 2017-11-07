@@ -26,7 +26,18 @@ def philly_storm_intensity(tc, return_period=0):
 	return I
 
 def hhcalcs_on_network(G):
+	"""
+	For each sewer (edge) in the network, G, calculate the velocity of gravity
+	flow, full-flow capacity, and full-flow travel time through the length of
+	the sewer. This sets attributes in 'velocity', 'capacity',
+	and 'travel_time'. 
 
+	Parameters
+	----------
+	G : Networkx DiGraph
+		Graph of a sewer network with edges having the Slope, Height, Width
+		PIPESHAPE, and Diameter parameters.
+	"""
 	G1 = G.copy()
 
 	for u,v, data in G1.edges_iter(data=True):
@@ -44,6 +55,7 @@ def hhcalcs_on_network(G):
 		shape, diameter = data['PIPESHAPE'], data['Diameter']
 
 		# print height, width, shape, diameter, data['FACILITYID']
+		#BUG this 'shape' should not be a string
 		if 'shape' is None:
 			shape = 'CIR'
 			diameter = max(diameter, height)

@@ -28,7 +28,7 @@ def graph_from_shp(pth=r'test_processed_01', idcol='FACILITYID'):
 
         #generate a uniq id if necessary
         if idcol not in d:
-            d[idcol] = sg.helpers.generate_facility_id()
+            d[idcol] = helpers.generate_facility_id()
 
     return G
 
@@ -81,7 +81,6 @@ class SewerGraph(object):
             G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
             G = resolve_geom_gaps(G)
 
-
             #perform capacity calcs
             G = hhcalcs_on_network(G)
 
@@ -100,9 +99,6 @@ class SewerGraph(object):
 
             #accumulating travel times
             G = accumulate_travel_time(G)
-
-
-
 
             self.G = G
             self.name = name

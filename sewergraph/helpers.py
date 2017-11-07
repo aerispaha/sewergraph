@@ -205,8 +205,8 @@ def create_html_map(geo_layers, filename, G, basemap='mapbox_base.html'):
     # basemap_path = r'P:\06_Tools\sewertrace\basemaps\mapbox_base.html'
 
     #get center point
-    xs = [d['X_Coord'] for n,d in G.nodes_iter(data=True) if 'X_Coord' in d]
-    ys = [d['Y_Coord'] for n,d in G.nodes_iter(data=True) if 'Y_Coord' in d]
+    xs = [d['coords'][0] for n,d in G.nodes_iter(data=True) if 'coords' in d]
+    ys = [d['coords'][1] for n,d in G.nodes_iter(data=True) if 'coords' in d]
     c = ((max(xs) + min(xs))/2 , (max(ys) + min(ys))/2)
     bbox = [(min(xs), min(ys)), (max(xs), max(ys))]
 
