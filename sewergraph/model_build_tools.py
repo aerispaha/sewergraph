@@ -10,7 +10,7 @@ import os
 
 
 def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
-      
+
     """
     create a GeoDataFrame of polygons representing sewersheds. Shed boundaries are
     created based on Voronoi polygons about each sewer segment.
@@ -24,7 +24,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
 
     #array of points to be used in Voronoi generation
     pts = [
-        (sewer.interpolate(pt, normalized=True).x, sewer.interpolate(pt, normalized=True).y) 
+        (sewer.interpolate(pt, normalized=True).x, sewer.interpolate(pt, normalized=True).y)
         for pt in np.linspace(0.1, 1, 16)
         for sewer in sewer_shapes if sewer.length > 35
     ]
@@ -50,7 +50,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
 
     #creat a MultiPloygon shapely object
     shed_pieces = shapely.geometry.MultiPolygon(da_list)
-    
+
     #create GeoDataFrame of shed pieces
     shed_geoms = [g for g in shed_pieces.geoms]
     shed_areas_sf = [shed.area for shed in shed_geoms]
@@ -68,25 +68,25 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
     #dissolve by sewer FACILITYID, add area column
     sewer_sheds = sewer_sheds.dissolve(by=SEWER_ID_COL, aggfunc='sum', as_index=False)
     sewer_sheds = sewer_sheds[[SEWER_ID_COL, 'geometry']] #drop unnecessary cols
-    
+
     return sewer_sheds
 
 
 def overlay_proportion(row, df, overlay_field, overlay_category):
         """
-        calculate the fraction of area covered by an overlay. input df is a 
-        GeoDataFrame resulting from an intersection of two mutlipolygon data sets. 
+        calculate the fraction of area covered by an overlay. input df is a
+        GeoDataFrame resulting from an intersection of two mutlipolygon data sets.
         """
 
         ov_frac = 0 #default
 
-        #isolate the study area based on input_field and input_id. 
+        #isolate the study area based on input_field and input_id.
         #study_area_df = df.loc[df[input_field]==row[input_field]]
         study_area_df = df.loc[df['idx1']==row.name]
         study_area = study_area_df.geometry.area.sum()
 
         if study_area > 0:
-            #isolate the overlay area based on the overlay_category. 
+            #isolate the overlay area based on the overlay_category.
             overlay_df = study_area_df.loc[study_area_df[overlay_field]==overlay_category]
             overlay_area = overlay_df.geometry.area.sum()
 
@@ -94,23 +94,23 @@ def overlay_proportion(row, df, overlay_field, overlay_category):
             ov_frac = overlay_area / study_area
 
         return ov_frac
-    
+
 def calculate_overlay_fraction(zones, overlay, overlay_field='FCODE', overlay_category='Impervious'):
     """
     calculate the fraction of each overlay category present in each polyon in the zone
-    GeoDataFrame. E.g. calculate imperviousness of sewersheds by passing in drainage areas 
+    GeoDataFrame. E.g. calculate imperviousness of sewersheds by passing in drainage areas
     and an impervious coverage layer.
     """
-    
-    #intersect the sheds and impervious cover spatial data 
+
+    #intersect the sheds and impervious cover spatial data
     overlay = overlay[[overlay_field, 'geometry']]
     ovdf = spatial_overlays(zones, overlay, how='intersection')
-    
-    
-    ov_frac = zones.apply(lambda row: 
-                        overlay_proportion(row, ovdf, overlay_field, overlay_category), 
+
+
+    ov_frac = zones.apply(lambda row:
+                        overlay_proportion(row, ovdf, overlay_field, overlay_category),
                         axis=1)
-    
+
     return ov_frac
 
 def array2raster(newRasterfn,rasterOrigin,pixelWidth,pixelHeight, crs, array):
@@ -133,7 +133,7 @@ def array2raster(newRasterfn,rasterOrigin,pixelWidth,pixelHeight, crs, array):
 
 def slope_stats_in_sheds(sheds_pth, dem_pth, cell_size=3.2809045, stats='mean median std count min max'):
     """
-    Given a shapefile and a DEM raster, calculate the slope statistics in each zone. 
+    Given a shapefile and a DEM raster, calculate the slope statistics in each zone.
     Return: array of dicts with stats for each zone
     """
     #open the dem raster, convert to np array
@@ -143,29 +143,29 @@ def slope_stats_in_sheds(sheds_pth, dem_pth, cell_size=3.2809045, stats='mean me
     raster_srs = osr.SpatialReference()
     raster_srs.ImportFromWkt(raster.GetProjectionRef())
     dem_arr = band.ReadAsArray().astype(np.float)
-    
+
     #calculate slope x and y compenent slopes
     g = np.gradient(dem_arr, cell_size)
     xg = g[0]
     yg = g[1]
-    
+
     #calculate magnitudes of resultant vectors
     slopes = np.sqrt(xg**2 + yg**2)
-    
+
     #write the slopes dem array to a raster file
     wd = os.path.dirname(dem_pth)
     dem_rast_fname = os.path.splitext(os.path.basename(dem_pth))[0]
     slope_rast_path = os.path.join(wd, dem_rast_fname + '_slope.tif')
     array2raster(slope_rast_path, (upper_left_x, upper_left_y), x_size, y_size, raster_srs, slopes)
-    
-    #calculate the zonal stats 
-    slope_stats = zonal_stats(sheds_pth, slope_rast_path, stats=stats)
-    
+
+    #calculate the zonal stats
+    slope_stats = zonal_stats(sheds_pth, slope_rast_path, stats=stats, nodata=-999)
+
     return slope_stats
-    
+
 def spatial_overlays(df1, df2, how='intersection'):
 
-    '''Compute overlay intersection of two 
+    '''Compute overlay intersection of two
         GeoPandasDataFrames df1 and df2
     '''
     df1 = df1.copy()
@@ -182,7 +182,7 @@ def spatial_overlays(df1, df2, how='intersection'):
         for i,j in pairs.items():
             for k in j:
                 nei.append([i,k])
-        
+
         pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'], crs=df1.crs)
         pairs = pairs.merge(df1, left_on='idx1', right_index=True)
         pairs = pairs.merge(df2, left_on='idx2', right_index=True, suffixes=['_1','_2'])
@@ -208,17 +208,17 @@ def spatial_overlays(df1, df2, how='intersection'):
         df1 = df1.loc[df1.geometry.is_empty==False].copy()
         df1.drop(['bbox', 'histreg', new_g], axis=1, inplace=True)
         return df1
-    
+
 def swmm5_polygons_from_sheds(shed_df):
     """
-    with a GeoDataFrame of polygons, create a dataframe 
-    with unstacked coordinates in the format of the SWMM5 inp 
+    with a GeoDataFrame of polygons, create a dataframe
+    with unstacked coordinates in the format of the SWMM5 inp
     [Polygons] section
     """
     polys = shed_df[:]
     polys.index = polys.Name
     polys = polys[['geometry']]
-    
+
     def unstack_poly_coords(row):
         xys = []
         try:
@@ -232,22 +232,21 @@ def swmm5_polygons_from_sheds(shed_df):
     polys['Subcatchment'] = polys.index
     stacked_xys = polys.set_index('Subcatchment').coords.apply(pd.Series).stack().reset_index(level=-1, drop=True)
     xys_df = pd.DataFrame(data=stacked_xys.values.tolist(), columns=['X-Coord', 'Y-Coord'], index=stacked_xys.index)
-    
+
     return xys_df
 
 
 def max_depth_from_raster(row, dem_pth, dem_adjustment=-4.63):
     """
-    return Max Depth for a df row passed with X & Y columns, 
+    return Max Depth for a df row passed with X & Y columns,
     for use in a SWMM5 Junctions table
     """
     if pd.isnull(row.X) or pd.isnull(row.Y):
         return None
-    
+
     point = 'POINT({} {})'.format(row.X, row.Y)
     rim_elev = point_query(point, dem_pth)[0] + dem_adjustment
     invert = row.InvertElev
     max_depth = rim_elev - invert
-    
-    return max_depth
 
+    return max_depth

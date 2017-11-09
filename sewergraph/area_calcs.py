@@ -274,7 +274,20 @@ def slope_stats_in_sheds(sheds_pth, dem_pth, cell_size=3.2809045, stats='mean me
     slope_stats = zonal_stats(sheds_pth, slope_rast_path, stats=stats)
 
     return slope_stats
+def max_depth_from_raster(row, dem_pth, dem_adjustment=-4.63):
+    """
+    return Max Depth for a df row passed with X & Y columns,
+    for use in a SWMM5 Junctions table
+    """
+    if pd.isnull(row.X) or pd.isnull(row.Y):
+        return None
 
+    point = 'POINT({} {})'.format(row.X, row.Y)
+    rim_elev = point_query(point, dem_pth)[0] + dem_adjustment
+    invert = row.InvertElev
+    max_depth = rim_elev - invert
+
+    return max_depth
 def spatial_overlays(df1, df2, how='intersection'):
 
     '''Compute overlay intersection of two
