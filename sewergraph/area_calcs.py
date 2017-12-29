@@ -4,19 +4,20 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 from scipy.spatial import Voronoi
-from rasterstats import zonal_stats, point_query
 import ogr, osr, gdal
 import os
+import sewergraph as sg
+import networkx as nx
 
 
 def map_area_to_sewers(G, areas, idcol='FACILITYID'):
     a = areas.set_index(idcol)
-    vanids = van[[idcol, 'u', 'v']]
+    sewers = sg.gdf_from_graph(G)
+    sewerids = sewers[[idcol, 'u', 'v']]
 
-    a = a.join(vanids)
+    a = a.join(sewerids)
     a = a.set_index(['u', 'v'])[['local_area']].T.apply(tuple).to_dict('records')[0]
     nx.set_edge_attributes(G, 'local_area', a)
-    return G
 
 
 def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
@@ -70,10 +71,13 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     #create GeoDataFrame of shed pieces
     shed_geoms = [g for g in shed_pieces.geoms]
     shed_areas_sf = [shed.area for shed in shed_geoms]
-    sheds = gpd.GeoDataFrame(geometry=shed_geoms, data={'local_area':shed_areas_sf})
+    sheds = gpd.GeoDataFrame(geometry=shed_geoms,
+                             data={'local_area':shed_areas_sf},
+                             crs = sewersdf.crs)
 
     #set crs and create a subshed id column
-    sheds.crs = {'init':'epsg:2272'}
+    # sheds.crs = sewersdf.crs #{'init':'epsg:2272'}
+    print ('sewersdf.crs: {}, sheds.crs: {}'.format(sewersdf.crs, sheds.crs))
     sheds['SUBSHED_ID'] = sheds.index
 
     #spatially join the subsheds to the sewers, drop duplicates (sheds touching multiple sewers)
@@ -85,7 +89,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     sewer_sheds = sewer_sheds[[SEWER_ID_COL, 'local_area', 'geometry']] #drop unnecessary cols
     # sewer_sheds = sewer_sheds.assign(local_area = sewer_sheds.geometry.area)
 
-    sewer_sheds.crs =  sewersdf.crs
+    # sewer_sheds.crs = sewersdf.crs
     return sewer_sheds
 
 def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
@@ -248,6 +252,11 @@ def slope_stats_in_sheds(sheds_pth, dem_pth, cell_size=3.2809045, stats='mean me
     Given a shapefile and a DEM raster, calculate the slope statistics in each zone.
     Return: array of dicts with stats for each zone
     """
+    try:
+        from rasterstats import zonal_stats
+    except:
+        raise ImportError('rasterstats not found. Try pip install rasterstats')
+
     #open the dem raster, convert to np array
     raster = gdal.Open(dem_pth)
     (upper_left_x, x_size, x_rotation, upper_left_y, y_rotation, y_size) = raster.GetGeoTransform()
@@ -279,6 +288,11 @@ def max_depth_from_raster(row, dem_pth, dem_adjustment=-4.63):
     return Max Depth for a df row passed with X & Y columns,
     for use in a SWMM5 Junctions table
     """
+    try:
+        from rasterstats import point_query
+    except:
+        raise ImportError('rasterstats not found. Try pip install rasterstats')
+
     if pd.isnull(row.X) or pd.isnull(row.Y):
         return None
 

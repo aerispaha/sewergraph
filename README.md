@@ -1,4 +1,4 @@
-## Process for performing sewer capacity caclulations
+## Process for performing sewer capacity calculations
 
 1. calculate the capacity and travel time in each segment in a network
 2. For each segment in a network:

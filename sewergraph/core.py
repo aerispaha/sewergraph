@@ -10,12 +10,13 @@ from kpi import SewerShedKPI
 import cost_estimates
 import os
 
-def graph_from_shp(pth=r'test_processed_01', idcol='FACILITYID'):
+def graph_from_shp(pth=r'test_processed_01', idcol='FACILITYID', crs={'init':'epsg:4326'}):
 
     #import well-known-text load func
     from shapely import wkt
 
     G = nx.read_shp(pth)
+    G.graph['crs'] = crs
     G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
 
     for u,v,d in G.edges(data=True):
@@ -39,7 +40,7 @@ def gdf_from_graph(G):
     """
     fids = [d['FACILITYID'] for u,v,d in G.edges(data=True)]
     data = [dict(d.items()+{'u':u, 'v':v}.items()) for u,v,d in G.edges(data=True)]
-    return gp.GeoDataFrame(data=data, index=fids)
+    return gp.GeoDataFrame(data=data, index=fids, crs=G.graph['crs'])
 
 class SewerGraph(object):
     def __init__(self, shapefile=None, G=None, boundary_conditions=None, run=True,
