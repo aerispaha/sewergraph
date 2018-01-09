@@ -29,9 +29,12 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
 
     study_area: Shapely polygon
     """
-
+    in_crs = sewersdf.crs
+    working_crs = {'init':'epsg:2272'}
+    #convert to state plane so we can get lengths in feet
     #include only sewers of the minumum desired length
-    sewersdf1 = sewersdf.loc[sewersdf.length > min_length]
+    sewersdf1 = sewersdf.to_crs(working_crs)
+    sewersdf1 = sewersdf1.loc[sewersdf1.length > min_length]
 
     #create a Shapely object
     sewer_shapes = MultiLineString([g for g in sewersdf1.geometry])
@@ -48,7 +51,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
 
     # shps.convex_hull.buffer(100)
     if study_area is None:
-        study_area = sewer_shapes.convex_hull
+        study_area = sewersdf1.unary_union.convex_hull
     study_area_buff = study_area.buffer(distance=5000)
     border_pts = [xy for xy in study_area_buff.boundary.coords]
 
@@ -73,11 +76,11 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     shed_areas_sf = [shed.area for shed in shed_geoms]
     sheds = gpd.GeoDataFrame(geometry=shed_geoms,
                              data={'local_area':shed_areas_sf},
-                             crs = sewersdf.crs)
+                             crs = sewersdf1.crs)
 
     #set crs and create a subshed id column
     # sheds.crs = sewersdf.crs #{'init':'epsg:2272'}
-    print ('sewersdf.crs: {}, sheds.crs: {}'.format(sewersdf.crs, sheds.crs))
+    print ('sewersdf1.crs: {}, sheds.crs: {}'.format(sewersdf1.crs, sheds.crs))
     sheds['SUBSHED_ID'] = sheds.index
 
     #spatially join the subsheds to the sewers, drop duplicates (sheds touching multiple sewers)
@@ -90,6 +93,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     # sewer_sheds = sewer_sheds.assign(local_area = sewer_sheds.geometry.area)
 
     # sewer_sheds.crs = sewersdf.crs
+    sewer_sheds = sewer_sheds.to_crs(in_crs)
     return sewer_sheds
 
 def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,

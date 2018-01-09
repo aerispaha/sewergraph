@@ -13,7 +13,7 @@ def replacements_for_capacity(G, enforced_cap_frac=1.0):
     enforced_cap_frac, calculate what replacement sewer is required.
     """
 
-    for u,v,d in G.edges_iter(data=True):
+    for u,v,d in G.edges(data=True):
 
         if d.get('capacity_fraction', 0) > enforced_cap_frac:
             q = d['peakQ']
@@ -35,7 +35,7 @@ def replacements_for_capacity(G, enforced_cap_frac=1.0):
             d['replacement_cost'] = total_cost
 
         else:
-            #remove these keys if they exist 
+            #remove these keys if they exist
             d.pop('replacement_diam', None)
             d.pop('replacement_h', None)
             d.pop('replacement_w', None)

@@ -36,7 +36,7 @@ def plot_profile(G, path):
     rims = []
     fids = []
 
-    for u,v,d in G.edges_iter(data=True, nbunch=path):
+    for u,v,d in G.edges(data=True, nbunch=path):
 
         node = G.node[u]
         sewer = G[u][v]

@@ -6,7 +6,7 @@ from hhcalculations import slope_at_velocity, mannings_velocity
 
 def preprocess_data(G):
 
-    for u,v,d in G.edges_iter(data=True):
+    for u,v,d in G.edges(data=True):
         #normalize geometry coding
         geom = G[u][v]['PIPESHAPE']
         diam = G[u][v]['Diameter']
@@ -28,7 +28,7 @@ def preprocess_data(G):
             d['PIPESHAPE'] = infer_from_dimensions(diam, h, w)
             d['inferred_geom'] = 'Y'
 
-    for n,d in G.nodes_iter(data=True):
+    for n,d in G.nodes(data=True):
         #normalize elevation data
         if 'ELEVATIONI' in d and d['ELEVATIONI'] == 0:
             del d['ELEVATIONI']# = None
@@ -241,7 +241,7 @@ def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
 
 def resolve_slope_gaps(G):
     G1 = G.copy()
-    for u,v,d in G1.edges_iter(data=True):
+    for u,v,d in G1.edges(data=True):
         if d['Slope'] == 0:
             slope, i, j, l = determine_slope_from_adjacent_inverts(G1, u, v)
 
@@ -264,7 +264,7 @@ def resolve_geom_gaps(G, nbunch=None):
     G1 = G.copy()
     preprocess_data(G1)
     G1 = extend_elevation_data(G1)
-    for u,v,d in G1.edges_iter(data=True, nbunch=nbunch):
+    for u,v,d in G1.edges(data=True, nbunch=nbunch):
 
         if d['PIPESHAPE'] not in ['BOX', 'CIR', 'EGG']:
             d['PIPESHAPE'] = None #overwrite, rid of 'UNK' issues
@@ -288,9 +288,9 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
     """
     G1 = G.copy()
 
-    topo_sorted_nodes = nx.topological_sort(G1, reverse=True)
+    topo_sorted_nodes = nx.topological_sort(G1)
 
-    for n in topo_sorted_nodes:
+    for n in list(reversed(list(topo_sorted_nodes))):
         #TRAVERSE THE TREE FROM BOTTOM TO TOP
         invert = None
 
@@ -310,7 +310,7 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
                     length = G1[p][n]['Shape_Leng']
                     G1.node[p]['invert_trusted'] = invert + (slope * length)
 
-    for n in list(reversed(topo_sorted_nodes)):
+    for n in topo_sorted_nodes:
 
         #TRAVERSE THE TREE FROM TOP TO BOTTOM
         invert = None

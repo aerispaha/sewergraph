@@ -29,9 +29,9 @@
   <!-- <div class='pin-right pad2'>
     <a href='#details-pane' class='button'>Trigger</a>
   </div> -->
-  <div id='details-pane' class='col4 pad2 fill-darken1 pin-left offcanvas-left animate'>
+  <!-- <div id='details-pane' class='col4 pad2 fill-darken1 pin-left offcanvas-left animate'>
     <a href='#' class='fill-darken2 pad1 icon close'></a>
-  </div>
+  </div> -->
 </div>
 
 <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
@@ -64,12 +64,32 @@ var get_upstream_facility_ids = function(G, target){
   up_fids = up_fid_arr.filter(function(n){ return n != undefined });
   return up_fids;
 }
-var sewer_source, parcel_source;
+var get_upstream_fids = function(G, target){
+  //jsnetworkx trace upstream
+    paths = jsnx.shortestPath(G, {target:target});
+    var up_fids = new Set();
+    jsnx.forEach(paths, function(n) {
+
+  // up_fids.add(G.node.get(n[0]).FACILITYID)
+  edge = G.getEdgeData(n[1][0], n[1][1])
+  // console.log(edge)
+  up_fids.add(edge)
+    });
+    let up_fid_arr = Array.from(up_fids);
+    up_fids = up_fid_arr.filter(function(n){ return n != undefined });
+    final = [];
+    for (var key in up_fids){
+        final.push(up_fids[key]['FACILITYID'])
+    }
+    return final;
+}
+var sewer_source, parcel_source, sheds_source;
 
 map.on('load', function() {
 
   //load the data into the map
   sewer_source = map.addSource('sewer-data', {'type': 'geojson', 'data': conduits});
+  sheds_source = map.addSource('sheds-data', {'type': 'geojson', 'data': sheds});
 
   map.addLayer({
         "id": "sewer-tc",
@@ -109,7 +129,7 @@ map.on('load', function() {
         },
           'line-opacity': 1,//0.75,
   	      'line-width':{
-            property: 'upstream_area_ac',
+            property: 'cumulative_area',
             stops: [
               [0,  0.25],
               [10, 3],
@@ -122,13 +142,15 @@ map.on('load', function() {
         // 'line-join':'round',
         'line-cap':'round',
       },
-      'filter':["!has", "flow_split"],
+      // 'filter':["!has", "flow_split"],
 	});
   map.addLayer({
         'id': 'sheds',
-        'source': 'composite',
-        'source-layer': 'theissen2-41fqsr',
+        // 'source': 'composite',
+        // 'source-layer': 'theissen2-41fqsr',
+        'source':'sheds-data',
         'type': 'fill',
+
         'paint': {
             'fill-color': 'rgb(74,52,183)',
             'fill-opacity': 0.25,
@@ -196,10 +218,10 @@ map.on('load', function() {
             // map.setFilter("sewer-descendants", ["==", "FACILITYID", ""]);
 
             //hide the detail pane
-            $('#details-pane').removeClass('active');
+            // $('#details-pane').removeClass('active');
             return;
         }else {
-          $('#details-pane').addClass('active');
+          // $('#details-pane').addClass('active');
         }
 
         var feature = features[0];
@@ -208,7 +230,9 @@ map.on('load', function() {
     //highlight the tc path
     tc_nodes = JSON.parse(feature.properties.tc_path)
     // up_nodes = JSON.parse(feature.properties.up_fids)
-    up_fids = get_upstream_facility_ids(G, feature.properties.up_node)
+    // up_fids = get_upstream_facility_ids(G, feature.properties.up_node);
+    up_fids = get_upstream_fids(G, feature.properties.up_node);
+
 
     // descendants = JSON.parse(feature.properties.descendants)
 

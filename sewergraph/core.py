@@ -105,8 +105,8 @@ class SewerGraph(object):
             self.name = name
 
             #summary calculations
-            self.top_nodes = [n for n,d in G.in_degree_iter() if d == 0]
-            self.terminal_nodes = [n for n,d in G.out_degree_iter() if d == 0]
+            self.top_nodes = [n for n,d in G.in_degree() if d == 0]
+            self.terminal_nodes = [n for n,d in G.out_degree() if d == 0]
             self.nbunch = None
 
             if run:
@@ -127,7 +127,7 @@ class SewerGraph(object):
         if outfall_node is not None:
             tn = outfall_node
         if outfall_fid is not None:
-            tn = [n for n,d in self.G.nodes_iter(data=True) if 'FACILITYID' in d
+            tn = [n for n,d in self.G.nodes(data=True) if 'FACILITYID' in d
                   and d['FACILITYID']==outfall_fid][0]
 
         #collect the nodes upstream of the terminal node, tn
@@ -162,7 +162,7 @@ class SewerGraph(object):
         set the runoff coefficient of each node to the given C. optionaly
         isolate manholes by FACILITYID
         """
-        for n,d in self.G.nodes_iter(data=True):
+        for n,d in self.G.nodes(data=True):
             d['runoff_coefficient'] = C
 
     def conduits(self):
@@ -192,7 +192,7 @@ class SewerGraph(object):
         if phs_area:
             phs_rates = [{'FACILITYID':d['FACILITYID'],
                           'limiting_rate':d['limiting_rate']}
-                         for n, d in self.G.nodes_iter(data=True)
+                         for n, d in self.G.nodes(data=True)
                          if 'FACILITYID' in d]
             lyrs = dict(
                 conduits = helpers.write_geojson(self.G, inproj=inproj),
@@ -286,7 +286,7 @@ def add_boundary_conditions(G, data):
     add additional data to nodes in the sewer_net.G. Do this
     before running the accumulate_area
     """
-    for n,d in G.nodes_iter(data=True):
+    for n,d in G.nodes(data=True):
         if 'FACILITYID' in d:
             for fid in data.keys():
                 if fid in d['FACILITYID']:
@@ -296,7 +296,7 @@ def add_boundary_conditions(G, data):
 def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
     G1 = G.copy()
 
-    for u,v,d in G1.edges_iter(data=True, nbunch=nbunch):
+    for u,v,d in G1.edges(data=True, nbunch=nbunch):
 
         #grab the upstream node's total and direct area,
         #and apply any flow split fraction
@@ -358,6 +358,15 @@ def accumulate_area(G):
             area += G1[p][n].get('local_area', 0)
 
         G1.node[n]['cumulative_area'] = area
+
+    #assign cumulative volume to each sewer
+    for u,v,d in G1.edges(data=True):
+        #grab the upstream node's total and direct area,
+        #and apply any flow split fraction
+        split_frac = d.get('flow_split_frac', 1)
+        direct = G1[u][v].get('local_area',0)
+        cumulative = (G1.node[u]['cumulative_area'] + direct)
+        d['cumulative_area'] = cumulative / 43560.
 
     return G1
 
@@ -421,7 +430,7 @@ def accumulate_travel_time(G):
     G1 = G.copy()
 
     #assign inlet time of concentration
-    for n, d in G1.nodes_iter(data=True):
+    for n, d in G1.nodes(data=True):
         if G1.in_degree(n) == 0 and 'tc' not in d:
             #top of shed node, won't overwrite
             #boundary condition with tc param already set
@@ -464,7 +473,7 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None,
     else:
         G1 = G
     if terminal_nodes is None:
-        terminal_nodes = [n for n,d in G1.out_degree_iter() if d == 0]
+        terminal_nodes = [n for n,d in G1.out_degree() if d == 0]
 
     #find limiting sewers
     for tn in terminal_nodes:
@@ -474,7 +483,7 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None,
         for p in G1.predecessors(tn):
             G1[p][tn]['limiting_rate'] = G1[p][tn][parameter]
 
-    for n in nx.topological_sort(G1, reverse=True):
+    for n in list(reversed(list(nx.topological_sort(G1)))):
         dn_node_rates = [(G1.node[s]['limiting_rate'],
                           G1.node[s]['limiting_sewer']) for s in G1.successors(n)]
         dn_edge_rates = [(G1[n][s][parameter],
@@ -507,11 +516,11 @@ def analyze_flow_splits(G):
     G1 = G.copy()
 
     #iterate through nodes having more than one out degree
-    splitters = [(n, deg) for n, deg in G1.out_degree_iter() if deg > 1]
+    splitters = [(n, deg) for n, deg in G1.out_degree() if deg > 1]
     for splitter, out_degree in splitters:
 
         #record which segments are downstream of this node
-        dwn_edges = [(splitter, dn) for dn in G1.successors_iter(splitter)]
+        dwn_edges = [(splitter, dn) for dn in G1.successors(splitter)]
         G1.node[splitter]['flow_split'] = splitter
         G1.node[splitter]['flow_split_edges'] = dwn_edges
 

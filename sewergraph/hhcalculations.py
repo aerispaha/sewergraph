@@ -30,7 +30,7 @@ def hhcalcs_on_network(G):
 	For each sewer (edge) in the network, G, calculate the velocity of gravity
 	flow, full-flow capacity, and full-flow travel time through the length of
 	the sewer. This sets attributes in 'velocity', 'capacity',
-	and 'travel_time'. 
+	and 'travel_time'.
 
 	Parameters
 	----------
@@ -40,7 +40,7 @@ def hhcalcs_on_network(G):
 	"""
 	G1 = G.copy()
 
-	for u,v, data in G1.edges_iter(data=True):
+	for u,v, data in G1.edges(data=True):
 
 		#velocity
 		# diameter = max( data['Diameter'], data['Height'])

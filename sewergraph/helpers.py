@@ -8,6 +8,7 @@ import json
 from geojson import Feature, LineString, Point, FeatureCollection
 import os, sys, subprocess
 import pandas as pd
+import geopandas as gp
 import uuid
 
 def generate_facility_id(length = 8):
@@ -103,7 +104,7 @@ def round_shapefile_node_keys(G):
     very close (but not exactly the same), round the labels to the nearest
     integer. This works well for state plane coordinate systems.
     """
-    mapping = {n:tuple([round(i, 2) for i in n]) for n in G.nodes_iter()}
+    mapping = {n:tuple([round(i, 2) for i in n]) for n in G.nodes()}
     return nx.relabel_nodes(G, mapping)
 
 def clean_network_data(G):
@@ -116,7 +117,7 @@ def clean_network_data(G):
     #remove isolated nodes
     G1.remove_nodes_from(nx.isolates(G1))
 
-    for u,v,d in G1.edges_iter(data=True):
+    for u,v,d in G1.edges(data=True):
         node_keeper_keys = ['X_Coord', 'Y_Coord','cumulative_area',
                             'local_area', 'FACILITYID', 'ELEVATION_', 'ELEVATIONI',
                             'FacilityNa', 'RASTERVALU']
@@ -162,7 +163,7 @@ def write_geojson(G, filename=None, geomtype='linestring', inproj='epsg:2272'):
     G1 = G.copy()
     features = []
     if geomtype == 'linestring':
-        for u,v,d in G1.edges_iter(data=True):
+        for u,v,d in G1.edges(data=True):
             coordinates = json.loads(d['Json'])['coordinates']
             latlngs = [pyproj.transform(pa_plane, wgs, *xy) for xy in coordinates]
             geometry = LineString(latlngs)
@@ -171,7 +172,7 @@ def write_geojson(G, filename=None, geomtype='linestring', inproj='epsg:2272'):
             features.append(feature)
 
     if geomtype == 'point':
-        for u, d in G1.nodes_iter(data=True):
+        for u, d in G1.nodes(data=True):
             try:
                 adjacent_n = G1[u].keys()[0]
                 adjacent_edge =  G1[u][adjacent_n]
@@ -205,10 +206,10 @@ def create_html_map(geo_layers, filename, G, basemap='mapbox_base.html'):
     # basemap_path = r'P:\06_Tools\sewertrace\basemaps\mapbox_base.html'
 
     #get center point
-    xs = [d['coords'][0] for n,d in G.nodes_iter(data=True) if 'coords' in d]
-    ys = [d['coords'][1] for n,d in G.nodes_iter(data=True) if 'coords' in d]
-    c = ((max(xs) + min(xs))/2 , (max(ys) + min(ys))/2)
-    bbox = [(min(xs), min(ys)), (max(xs), max(ys))]
+    gdf = gp.GeoDataFrame(nx.to_pandas_edgelist(G)[['geometry']])
+    hull = gdf.unary_union.convex_hull
+    c = (hull.centroid.x, hull.centroid.y)
+    bbox = hull.bounds
 
     with open(BASEMAP_PATH, 'r') as bm:
         # filename = os.path.join(os.path.dirname(geocondpath), self.alt_report.model.name + '.html')
@@ -221,8 +222,8 @@ def create_html_map(geo_layers, filename, G, basemap='mapbox_base.html'):
 
                     #write the network as a json object
                     # net_dict = json_graph.node_link_data(G)
-                    edges = G.edges()
-                    nodes = G.nodes(data=True)
+                    edges = list([(u,v, {'FACILITYID':d}) for u,v,d in G.edges.data('FACILITYID')])
+                    nodes = list(G.nodes())
 
                     # newmap.write('net_json = {};\n'.format(json.dumps(net_dict)))
                     newmap.write('edges = {};\n'.format(json.dumps(edges)))
@@ -232,8 +233,8 @@ def create_html_map(geo_layers, filename, G, basemap='mapbox_base.html'):
 					newmap.write('center:[{}, {}],\n'.format(c[0], c[1]))
                 if '//INSERT BBOX HERE' in line:
                     newmap.write('map.fitBounds([[{}, {}], [{}, {}]]);\n'
-                                 .format(bbox[0][0], bbox[0][1], bbox[1][0],
-                                         bbox[1][1]))
+                                 .format(bbox[0], bbox[1], bbox[2],
+                                         bbox[3]))
 
                 else:
 					newmap.write(line)
