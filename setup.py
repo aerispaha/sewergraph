@@ -11,7 +11,7 @@ AUTHOR_NAME = 'Adam Erispaha'
 AUTHOR_EMAIL = 'aerispaha@gmail.com'
 
 install_requires = [
-    'networkx==1.11',
+    'networkx>=2',
     'pandas',
     'geopandas',
     'numpy',

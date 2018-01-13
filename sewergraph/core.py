@@ -534,3 +534,33 @@ def analyze_flow_splits(G):
             G1[u][v]['flow_split_frac'] = G1[u][v]['capacity'] / total_capacity
 
     return G1
+
+def set_flow_direction(G1, out):
+    '''
+    THATS THE ONEEEEEEE BOIIIIII
+    '''
+    H1 = G1.to_undirected()
+
+    #for each node in an undirected copy of G,
+    #find edges in the simple short paths from n to all outs
+    #that don't exist in G, then reverse them
+    rev_edges = []
+    for n in H1.nodes():
+        if nx.has_path(H1, n, out):
+            for path in nx.shortest_simple_paths(H1, n, out):
+                for u,v in list(sg.pairwise(path)):
+                    if G1.has_edge(u,v) is False:
+                        rev_edges.append((v,u))
+
+    G2 = G1.copy()
+    for u,v in set(rev_edges):
+
+        d = G2[u][v].copy()
+        G2.remove_edge(u,v)
+        #print (u,v, d)
+        G2.add_edge(v,u)
+        for k,val in d.iteritems():
+            G2[v][u][k] = val
+
+
+    return G2
