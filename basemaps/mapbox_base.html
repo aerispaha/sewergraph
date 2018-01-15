@@ -119,12 +119,12 @@ map.on('load', function() {
       "source": "sewer-data",
       'paint': {
           'line-color': {
-              property: 'capacity_fraction',
+              property: 'intensity',
               stops: [
                 [0, '#50716c'],
-                [0.50, '#64bab4'],
-                [2.00  ,'#c94242'],
-                [5.00, '#ea30e4']
+                [1.0, '#64bab4'],
+                [6.00  ,'#c94242'],
+                [50.00, '#ea30e4']
               ]
         },
           'line-opacity': 1,//0.75,
@@ -132,6 +132,7 @@ map.on('load', function() {
             property: 'cumulative_area',
             stops: [
               [0,  0.25],
+              // [48,  10],
               [10, 3],
               [200, 5],
               [5000, 25]
