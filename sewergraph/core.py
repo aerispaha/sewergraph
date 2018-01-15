@@ -34,13 +34,15 @@ def graph_from_shp(pth=r'test_processed_01', idcol='FACILITYID', crs={'init':'ep
     return G
 
 def gdf_from_graph(G):
-    """
-    create a GeoDataFrame from a drainx graph.
-    Hacky way to get u and v into the df right now...
-    """
-    fids = [d['FACILITYID'] for u,v,d in G.edges(data=True)]
-    data = [dict(d.items()+{'u':u, 'v':v}.items()) for u,v,d in G.edges(data=True)]
-    return gp.GeoDataFrame(data=data, index=fids, crs=G.graph['crs'])
+    '''create a GeoDataFrame from a sewergraph, G.'''
+    df = nx.to_pandas_edgelist(G)
+    return gp.GeoDataFrame(df, crs = G.graph['crs'])
+    
+def graph_from_gdf(gdf):
+    '''create a sewergraph, G, from a GeoDataFrame'''
+    G = nx.from_pandas_edgelist(gdf, create_using=nx.DiGraph(), edge_attr=True)
+    G.graph['crs'] = gdf.crs
+    return G
 
 class SewerGraph(object):
     def __init__(self, shapefile=None, G=None, boundary_conditions=None, run=True,
