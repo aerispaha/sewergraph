@@ -79,7 +79,7 @@ var get_upstream_fids = function(G, target){
     up_fids = up_fid_arr.filter(function(n){ return n != undefined });
     final = [];
     for (var key in up_fids){
-        final.push(up_fids[key]['FACILITYID'])
+        final.push(up_fids[key]['facilityid'])
     }
     return final;
 }
@@ -111,7 +111,18 @@ map.on('load', function() {
               'line-opacity': 0.4,
   			'line-width':15,
           },
-  		'filter':["==", "FACILITYID", ""],
+  		'filter':["==", "facilityid", ""],
+      });
+  map.addLayer({
+          "id": "sewer-upstream",
+          'type': 'line',
+          "source": "sewer-data",
+          'paint': {
+              'line-color': "#22c16b",//"#8384a4",
+              'line-opacity': 0.4,
+  			'line-width':15,
+          },
+  		'filter':["==", "facilityid", ""],
       });
   map.addLayer({
       "id": "sewer",
@@ -156,7 +167,7 @@ map.on('load', function() {
             'fill-color': 'rgb(74,52,183)',
             'fill-opacity': 0.25,
         },
-        'filter':["==", "FACILITYID", ""],
+        'filter':["==", "facilityid", ""],
     });
     map.addLayer({
             "id": "sewer-splits",
@@ -195,7 +206,7 @@ map.on('load', function() {
                 'line-width':30,
               },
         'line-join':'round',
-    		'filter':["==", "FACILITYID", ""],
+    		'filter':["==", "facilityid", ""],
         });
 
 
@@ -212,11 +223,11 @@ map.on('load', function() {
         var features = map.queryRenderedFeatures(clickbox, { layers: ['sewer', 'sewer-splits'] });
         if (!features.length) {
             // nothing clickable was clicked, return to default view
-			      map.setFilter("sewer-hover", ["==", "FACILITYID", ""]);
+			      map.setFilter("sewer-hover", ["==", "facilityid", ""]);
             map.setFilter("sewer-tc", ["in", "dn_node", ""]);
-            map.setFilter("sheds", ["==", "FACILITYID", ""]);
-            map.setFilter("sewer-limiting", ["==", "FACILITYID", ""]);
-            // map.setFilter("sewer-descendants", ["==", "FACILITYID", ""]);
+            map.setFilter("sheds", ["==", "facilityid", ""]);
+            map.setFilter("sewer-limiting", ["==", "facilityid", ""]);
+            // map.setFilter("sewer-descendants", ["==", "facilityid", ""]);
 
             //hide the detail pane
             // $('#details-pane').removeClass('active');
@@ -244,12 +255,12 @@ map.on('load', function() {
       ["in", "up_node"].concat(tc_nodes),
     ]
     map.setFilter("sewer-tc", filter);
-    map.setFilter("sheds", ["in", "FACILITYID"].concat(up_fids));
-    // map.setFilter("sewer-descendants", ["in", "FACILITYID"].concat(descendants));
+    map.setFilter("sheds", ["in", "facilityid"].concat(up_fids));
+    // map.setFilter("sewer-descendants", ["in", "facilityid"].concat(descendants));
 
 		//highlight whats been clicked
-		map.setFilter("sewer-hover", ["==", "FACILITYID", feature.properties.FACILITYID]);
-    map.setFilter("sewer-limiting", ["==", "FACILITYID", feature.properties.limiting_sewer]);
+		map.setFilter("sewer-hover", ["==", "facilityid", feature.properties.facilityid]);
+    map.setFilter("sewer-limiting", ["==", "facilityid", feature.properties.limiting_sewer]);
 
     var props = feature.properties
     var slope = Math.round(props.Slope * 100) / 100

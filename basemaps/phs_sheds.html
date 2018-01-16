@@ -73,7 +73,7 @@ map.on('load', function() {
               'line-opacity': 0.4,
   			'line-width':15,
           },
-  		'filter':["==", "FACILITYID", ""],
+  		'filter':["==", "facilityid", ""],
       });
   map.addLayer({
       "id": "sewer",
@@ -102,11 +102,11 @@ map.on('load', function() {
             'fill-color': 'rgb(74,52,183)',
             'fill-opacity': 0.25,
         },
-        'filter':["==", "FACILITYID", ""],
+        'filter':["==", "facilityid", ""],
     });
 
-    var vtMatchProp = "FACILITYID";
-    var dataMatchProp = "FACILITYID";
+    var vtMatchProp = "facilityid";
+    var dataMatchProp = "facilityid";
     var dataStyleProp = "limiting_rate";
 
     // First value is the default, used where the is no data
@@ -139,8 +139,8 @@ map.on('load', function() {
               'fill-opacity': 0.25,
               // 'fill-outline-color':"rgba(0,0,0,1)",
           },
-          'filter':["in", "FACILITYID"].concat(phs_sheds.map(function(obj){
-            return obj['FACILITYID'];
+          'filter':["in", "facilityid"].concat(phs_sheds.map(function(obj){
+            return obj['facilityid'];
           })),
       });
     map.addLayer({
@@ -180,7 +180,7 @@ map.on('load', function() {
                 'line-width':30,
               },
         'line-join':'round',
-    		'filter':["==", "FACILITYID", ""],
+    		'filter':["==", "facilityid", ""],
         });
 
 
@@ -196,11 +196,11 @@ map.on('load', function() {
 
         var features = map.queryRenderedFeatures(clickbox, { layers: ['sewer', 'sewer-splits'] });
         if (!features.length) {
-			      map.setFilter("sewer-hover", ["==", "FACILITYID", ""]);
+			      map.setFilter("sewer-hover", ["==", "facilityid", ""]);
             map.setFilter("sewer-tc", ["in", "dn_node", ""]);
-            map.setFilter("sheds", ["==", "FACILITYID", ""]);
-            map.setFilter("sewer-limiting", ["==", "FACILITYID", ""]);
-            // map.setFilter("sewer-descendants", ["==", "FACILITYID", ""]);
+            map.setFilter("sheds", ["==", "facilityid", ""]);
+            map.setFilter("sewer-limiting", ["==", "facilityid", ""]);
+            // map.setFilter("sewer-descendants", ["==", "facilityid", ""]);
             return;
         }
 
@@ -221,12 +221,12 @@ map.on('load', function() {
       ["in", "up_node"].concat(tc_nodes),
     ]
     map.setFilter("sewer-tc", filter);
-    map.setFilter("sheds", ["in", "FACILITYID"].concat(up_fids));
-    // map.setFilter("sewer-descendants", ["in", "FACILITYID"].concat(descendants));
+    map.setFilter("sheds", ["in", "facilityid"].concat(up_fids));
+    // map.setFilter("sewer-descendants", ["in", "facilityid"].concat(descendants));
 
 		//highlight whats been clicked
-		map.setFilter("sewer-hover", ["==", "FACILITYID", feature.properties.FACILITYID]);
-    map.setFilter("sewer-limiting", ["==", "FACILITYID", feature.properties.limiting_sewer]);
+		map.setFilter("sewer-hover", ["==", "facilityid", feature.properties.FACILITYID]);
+    map.setFilter("sewer-limiting", ["==", "facilityid", feature.properties.limiting_sewer]);
 
     var props = feature.properties
     var slope = Math.round(props.Slope * 100) / 100

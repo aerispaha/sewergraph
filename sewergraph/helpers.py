@@ -30,7 +30,7 @@ def sum_params_in_nodes(G, nodes, parameter):
     vals = [G.node[n][parameter] for n in nodes if parameter in G.node[n]]
     return sum(vals)
 
-def data_from_adjacent_node(G, n, key='FACILITYID'):
+def data_from_adjacent_node(G, n, key='facilityid'):
     """can be the current node if it has the data key"""
 
     nodes = G.nodes(data=True)
@@ -119,10 +119,10 @@ def clean_network_data(G):
 
     for u,v,d in G1.edges(data=True):
         node_keeper_keys = ['X_Coord', 'Y_Coord','cumulative_area',
-                            'local_area', 'FACILITYID', 'ELEVATION_', 'ELEVATIONI',
+                            'local_area', 'facilityid', 'ELEVATION_', 'ELEVATIONI',
                             'FacilityNa', 'RASTERVALU']
-        edge_keeper_keys = ['Diameter', 'Height','Width', 'FACILITYID','Json',
-                            'Slope', 'Shape_Leng', 'Year_Insta', 'PIPESHAPE',
+        edge_keeper_keys = ['diameter', 'height','width', 'facilityid','Json',
+                            'slope', 'Shape_Leng', 'Year_Insta', 'pipeshape',
                             'PIPE_TYPE', 'STICKERLIN', 'LABEL','ELEVATION_',
                             'ELEVATIONI','slope_calculated',
                             'slope_calculated_fids', 'local_area']
@@ -222,7 +222,7 @@ def create_html_map(geo_layers, filename, G, basemap='mapbox_base.html'):
 
                     #write the network as a json object
                     # net_dict = json_graph.node_link_data(G)
-                    edges = list([(u,v, {'FACILITYID':d}) for u,v,d in G.edges.data('FACILITYID')])
+                    edges = list([(u,v, {'facilityid':d}) for u,v,d in G.edges.data('facilityid')])
                     nodes = list(G.nodes())
 
                     # newmap.write('net_json = {};\n'.format(json.dumps(net_dict)))

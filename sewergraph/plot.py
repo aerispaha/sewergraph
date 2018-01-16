@@ -8,10 +8,10 @@ def to_map(G, filename=None, startfile=True, phs_area=False, inproj='epsg:2272')
         filename = os.path.join(shapefile_path, 'map.html')
 
     if phs_area:
-        phs_rates = [{'FACILITYID':d['FACILITYID'],
+        phs_rates = [{'facilityid':d['facilityid'],
                       'limiting_rate':d['limiting_rate']}
                      for n, d in G.nodes(data=True)
-                     if 'FACILITYID' in d]
+                     if 'facilityid' in d]
         lyrs = dict(
             conduits = helpers.write_geojson(G, inproj=inproj),
             phs_sheds = phs_rates
@@ -41,12 +41,12 @@ def plot_profile(G, path):
         node = G.node[u]
         sewer = G[u][v]
         inverts.append(node['invert'])
-        h = max(sewer['Diameter'], sewer['Height']) / 12.0
+        h = max(sewer['diameter'], sewer['height']) / 12.0
         heights.append(h + node['invert'])
         rim_el = node.get('ELEVATION_', None)
         rims.append(rim_el)
         xs.append(l)
-        fids.append(sewer['FACILITYID'])
+        fids.append(sewer['facilityid'])
         l += sewer['Shape_Leng']
 
 

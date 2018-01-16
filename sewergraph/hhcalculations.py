@@ -36,25 +36,25 @@ def hhcalcs_on_network(G):
 	----------
 	G : Networkx DiGraph
 		Graph of a sewer network with edges having the Slope, Height, Width
-		PIPESHAPE, and Diameter parameters.
+		pipeshape, and diameter parameters.
 	"""
 	G1 = G.copy()
 
 	for u,v, data in G1.edges(data=True):
 
 		#velocity
-		# diameter = max( data['Diameter'], data['Height'])
+		# diameter = max( data['diameter'], data['height'])
 		if 'slope_calculated' in data:
 			slope = max(data['slope_calculated'], 0.01)
-			# data['Slope'] = slope
+			# data['slope'] = slope
 		else:
-			slope = max(data['Slope'], 0.1)
+			slope = max(data['slope'], 0.1)
 		data['slope_used_in_calcs'] = slope
 
-		height, width = data['Height'], data['Width']
-		shape, diameter = data['PIPESHAPE'], data['Diameter']
+		height, width = data['height'], data['width']
+		shape, diameter = data['pipeshape'], data['diameter']
 
-		# print height, width, shape, diameter, data['FACILITYID']
+		# print height, width, shape, diameter, data['facilityid']
 		#BUG this 'shape' should not be a string
 		if 'shape' is None:
 			shape = 'CIR'

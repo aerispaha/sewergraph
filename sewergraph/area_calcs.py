@@ -10,7 +10,7 @@ import sewergraph as sg
 import networkx as nx
 
 
-def map_area_to_sewers(G, areas, idcol='FACILITYID'):
+def map_area_to_sewers(G, areas, idcol='facilityid'):
     a = areas.set_index(idcol)
     sewers = sg.gdf_from_graph(G)
     sewerids = sewers[[idcol, 'u', 'v']]

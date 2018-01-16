@@ -62,7 +62,7 @@ map.on('load', function() {
               'line-opacity': 0.4,
   			'line-width':15,
           },
-  		'filter':["==", "FACILITYID", ""],
+  		'filter':["==", "facilityid", ""],
       });
   map.addLayer({
       "id": "sewer",
@@ -83,7 +83,7 @@ map.on('load', function() {
             'fill-color': 'rgb(74,52,183)',
             'fill-opacity': 0.25,
         },
-        'filter':["==", "FACILITYID", ""],
+        'filter':["==", "facilityid", ""],
     });
     // map.addLayer({
     //         "id": "sewer-splits",
@@ -121,7 +121,7 @@ map.on('load', function() {
     //             'line-opacity': 0.9,
     // 			'line-width':6,
     //         },
-    // 		'filter':["==", "FACILITYID", ""],
+    // 		'filter':["==", "facilityid", ""],
     //     });
 
     map.addLayer({
@@ -155,7 +155,7 @@ map.on('load', function() {
                     'line-width':5,
                 },
             'line-join':'round',
-            'filter':["==", "FACILITYID", ""],
+            'filter':["==", "facilityid", ""],
           });
 
 
@@ -171,9 +171,9 @@ map.on('load', function() {
 
         var features = map.queryRenderedFeatures(clickbox, { layers: ['sewer'] });
         if (!features.length) {
-			      map.setFilter("sewer-hover", ["==", "FACILITYID", ""]);
-            map.setFilter("sheds", ["==", "FACILITYID", ""]);
-            map.setFilter("sewer-calc-source", ["==", "FACILITYID", ""]);
+			      map.setFilter("sewer-hover", ["==", "facilityid", ""]);
+            map.setFilter("sheds", ["==", "facilityid", ""]);
+            map.setFilter("sewer-calc-source", ["==", "facilityid", ""]);
             return;
         }
 
@@ -185,14 +185,14 @@ map.on('load', function() {
     up_fids = get_upstream_facility_ids(G, feature.properties.dn_node)
 
     slope_calc_fids = JSON.parse(feature.properties.slope_calculated_fids)
-    map.setFilter("sewer-calc-source", ["in", "FACILITYID"].concat(slope_calc_fids));
+    map.setFilter("sewer-calc-source", ["in", "facilityid"].concat(slope_calc_fids));
 
-    map.setFilter("sheds", ["in", "FACILITYID"].concat(up_fids));
+    map.setFilter("sheds", ["in", "facilityid"].concat(up_fids));
 
-    // map.setFilter("sewer-descendants", ["in", "FACILITYID"].concat(descendants));
+    // map.setFilter("sewer-descendants", ["in", "facilityid"].concat(descendants));
 
 		//highlight whats been clicked
-		map.setFilter("sewer-hover", ["==", "FACILITYID", feature.properties.FACILITYID]);
+		map.setFilter("sewer-hover", ["==", "facilityid", feature.properties.FACILITYID]);
 		var props = feature.properties
     var slope = Math.round(props.Slope * 100) / 100
     var label = props.LABEL + ' @ '+ slope + '% (' + props.Year_Insta + ')'

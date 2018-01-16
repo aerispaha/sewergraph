@@ -10,7 +10,7 @@ from kpi import SewerShedKPI
 import cost_estimates
 import os
 
-def graph_from_shp(pth=r'test_processed_01', idcol='FACILITYID', crs={'init':'epsg:4326'}):
+def graph_from_shp(pth=r'test_processed_01', idcol='facilityid', crs={'init':'epsg:4326'}):
 
     #import well-known-text load func
     from shapely import wkt
@@ -37,7 +37,7 @@ def gdf_from_graph(G):
     '''create a GeoDataFrame from a sewergraph, G.'''
     df = nx.to_pandas_edgelist(G)
     return gp.GeoDataFrame(df, crs = G.graph['crs'])
-    
+
 def graph_from_gdf(gdf):
     '''create a sewergraph, G, from a GeoDataFrame'''
     G = nx.from_pandas_edgelist(gdf, create_using=nx.DiGraph(), edge_attr=True)
@@ -129,8 +129,8 @@ class SewerGraph(object):
         if outfall_node is not None:
             tn = outfall_node
         if outfall_fid is not None:
-            tn = [n for n,d in self.G.nodes(data=True) if 'FACILITYID' in d
-                  and d['FACILITYID']==outfall_fid][0]
+            tn = [n for n,d in self.G.nodes(data=True) if 'facilityid' in d
+                  and d['facilityid']==outfall_fid][0]
 
         #collect the nodes upstream of the terminal node, tn
         nbunch = nx.ancestors(self.G, tn) | set({tn})
@@ -171,7 +171,7 @@ class SewerGraph(object):
         """
         return the networkx network edges as a Pandas Dataframe
         """
-        fids = [d['FACILITYID'] for u,v,d in self.G.edges(data=True)]
+        fids = [d['facilityid'] for u,v,d in self.G.edges(data=True)]
         data = [d for u,v,d in self.G.edges(data=True)]
         df = pd.DataFrame(data=data, index=fids)
 
@@ -181,7 +181,7 @@ class SewerGraph(object):
         """
         return the networkx network nodes as a Pandas Dataframe
         """
-        # fids = [d['FACILITYID'] for u,v,d in self.G.edges(data=True)]
+        # fids = [d['facilityid'] for u,v,d in self.G.edges(data=True)]
         data = [d for n,d in self.G.nodes(data=True)]
         df = pd.DataFrame(data=data, index=self.G.nodes())
         return df
@@ -192,10 +192,10 @@ class SewerGraph(object):
             filename = os.path.join(shapefile_path, 'map.html')
 
         if phs_area:
-            phs_rates = [{'FACILITYID':d['FACILITYID'],
+            phs_rates = [{'facilityid':d['facilityid'],
                           'limiting_rate':d['limiting_rate']}
                          for n, d in self.G.nodes(data=True)
-                         if 'FACILITYID' in d]
+                         if 'facilityid' in d]
             lyrs = dict(
                 conduits = helpers.write_geojson(self.G, inproj=inproj),
                 phs_sheds = phs_rates
@@ -259,10 +259,10 @@ class SewerGraph(object):
         #XSECTIONS
         xsect = self.conduits()
         xsect.index = cols
-        xsect = xsect[['PIPESHAPE', 'Diameter', 'Height', 'Width']]
+        xsect = xsect[['pipeshape', 'diameter', 'height', 'width']]
         shape_map = {'CIR':'CIRCULAR'}
-        xsect = xsect.replace({'PIPESHAPE':shape_map})
-        xsect = xsect.rename(columns={'Diameter':'Geom1', 'Height':'Geom2', 'Width':'Geom3',  'PIPESHAPE':'Shape'})
+        xsect = xsect.replace({'pipeshape':shape_map})
+        xsect = xsect.rename(columns={'diameter':'Geom1', 'height':'Geom2', 'width':'Geom3',  'pipeshape':'Shape'})
 
         #shift the geoms for EGG shaped
         xsect.loc[xsect.Shape=='EGG', 'Geom1'] = xsect.loc[xsect.Shape=='EGG', 'Geom2']
@@ -289,9 +289,9 @@ def add_boundary_conditions(G, data):
     before running the accumulate_area
     """
     for n,d in G.nodes(data=True):
-        if 'FACILITYID' in d:
+        if 'facilityid' in d:
             for fid in data.keys():
-                if fid in d['FACILITYID']:
+                if fid in d['facilityid']:
                     #print 'adding data to {}'.format(fid)
                     d.update(data[fid])
 
@@ -489,7 +489,7 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None,
         dn_node_rates = [(G1.node[s]['limiting_rate'],
                           G1.node[s]['limiting_sewer']) for s in G1.successors(n)]
         dn_edge_rates = [(G1[n][s][parameter],
-                          G1[n][s]['FACILITYID']) for s in G1.successors(n)]
+                          G1[n][s]['facilityid']) for s in G1.successors(n)]
         dn_rates = dn_node_rates + dn_edge_rates
 
         if len(dn_rates) > 0:
@@ -537,6 +537,12 @@ def analyze_flow_splits(G):
 
     return G1
 
+def find_edge(facilityid):
+    '''find an edge given a facilityid'''
+    for u,v,fid in G.edges(data='facilityid'):
+        if fid == facilityid:
+            return (u,v)
+
 def set_flow_direction(G1, out):
     '''
     THATS THE ONEEEEEEE BOIIIIII
@@ -550,7 +556,7 @@ def set_flow_direction(G1, out):
     for n in H1.nodes():
         if nx.has_path(H1, n, out):
             for path in nx.shortest_simple_paths(H1, n, out):
-                for u,v in list(sg.pairwise(path)):
+                for u,v in list(pairwise(path)):
                     if G1.has_edge(u,v) is False:
                         rev_edges.append((v,u))
 

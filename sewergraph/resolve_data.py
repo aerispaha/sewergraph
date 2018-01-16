@@ -8,24 +8,24 @@ def preprocess_data(G):
 
     for u,v,d in G.edges(data=True):
         #normalize geometry coding
-        geom = G[u][v]['PIPESHAPE']
-        diam = G[u][v]['Diameter']
-        h = G[u][v]['Height']
-        w = G[u][v]['Width']
+        geom = G[u][v]['pipeshape']
+        diam = G[u][v]['diameter']
+        h = G[u][v]['height']
+        w = G[u][v]['width']
 
         #standardize unknowns
         if geom not in ['BOX', 'CIR', 'EGG'] or sum(filter(None,
                                                            [diam, h, w]
                                                            )
                                                     ) == 0:
-            d['PIPESHAPE'] = None
+            d['pipeshape'] = None
         elif (geom == 'CIR' and diam == 0 and h > 0 and w > 0):
             # if the geoms don't resemble a circle
-            d['PIPESHAPE'] = infer_from_dimensions(diam, h, w)
+            d['pipeshape'] = infer_from_dimensions(diam, h, w)
             d['inferred_geom'] = 'Y'
         elif (h == 0 and w == 0 and geom in ['EGG', 'BOX']):
             # if the geoms don't resemble a box/egg
-            d['PIPESHAPE'] = infer_from_dimensions(diam, h, w)
+            d['pipeshape'] = infer_from_dimensions(diam, h, w)
             d['inferred_geom'] = 'Y'
 
     for n,d in G.nodes(data=True):
@@ -45,25 +45,25 @@ def infer_from_dimensions(diam, h, w):
 def resolve_geometry(G, u, v, search_depth=5):
 
     label = fid = None
-    diam, h, w = G[u][v]['Diameter'], G[u][v]['Height'], G[u][v]['Width']
+    diam, h, w = G[u][v]['diameter'], G[u][v]['height'], G[u][v]['width']
     i = 0
     up, dn = u, v
     geom = infer_from_dimensions(diam, h, w)
 
     #find upstream edges that have the attribute, select the largest as the
     #representative sewer (most sewers will increase in size traversing downstrm)
-    up_edges_data = dfs_edges_upstream_attributes(G, u, 'PIPESHAPE')
+    up_edges_data = dfs_edges_upstream_attributes(G, u, 'pipeshape')
     if len(up_edges_data) > 0:
-        geoms = [(d['Diameter']+d['Height']+d['Width'],i,j) for i,j,d in up_edges_data]
+        geoms = [(d['diameter']+d['height']+d['width'],i,j) for i,j,d in up_edges_data]
         geoms.sort(reverse=True)
         _, i, j = geoms[0]
 
-        geom = G[i][j]['PIPESHAPE']
-        diam = G[i][j]['Diameter']
-        h = G[i][j]['Height']
-        w = G[i][j]['Width']
+        geom = G[i][j]['pipeshape']
+        diam = G[i][j]['diameter']
+        h = G[i][j]['height']
+        w = G[i][j]['width']
         label = G[i][j]['LABEL']
-        fid = G[i][j]['FACILITYID']
+        fid = G[i][j]['facilityid']
 
         if geom not in ['BOX', 'CIR', 'EGG']:
             geom = infer_from_dimensions(diam, h, w)
@@ -75,12 +75,12 @@ def resolve_geometry(G, u, v, search_depth=5):
 
         for dn in G.successors(v):
             #avoid modeling after a downstream collector
-            geom = G[v][dn]['PIPESHAPE']
-            diam = G[v][dn]['Diameter']
-            h = G[v][dn]['Height']
-            w = G[v][dn]['Width']
+            geom = G[v][dn]['pipeshape']
+            diam = G[v][dn]['diameter']
+            h = G[v][dn]['height']
+            w = G[v][dn]['width']
             label = G[v][dn]['LABEL']
-            fid = G[v][dn]['FACILITYID']
+            fid = G[v][dn]['facilityid']
 
             if geom not in ['BOX', 'CIR', 'EGG']:
                 geom = infer_from_dimensions(diam, h, w)
@@ -139,7 +139,7 @@ def dfs_nodes_attributes_iter(G, source=None, attribute=None, upstream=True,
                     visited.add(parent)
 
             except StopIteration:
-                #print edge['FACILITYID'], 'terminal', [i[1] for i in stack]
+                #print edge['facilityid'], 'terminal', [i[1] for i in stack]
                 stack.pop()
 
 def dfs_nodes_attributes(G, source=None, attribute=None, upstream=True):
@@ -182,7 +182,7 @@ def dfs_edges_upstream_attributes_iter(G, source=None, attribute=None):
                     visited.add(parent)
 
             except StopIteration:
-                #print edge['FACILITYID'], 'terminal', [i[1] for i in stack]
+                #print edge['facilityid'], 'terminal', [i[1] for i in stack]
                 stack.pop()
 def dfs_edges_upstream_attributes(G, source=None, attribute=None):
 
@@ -242,13 +242,13 @@ def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
 def resolve_slope_gaps(G):
     G1 = G.copy()
     for u,v,d in G1.edges(data=True):
-        if d['Slope'] == 0:
+        if d['slope'] == 0:
             slope, i, j, l = determine_slope_from_adjacent_inverts(G1, u, v)
 
             if slope < 0:
                 #if negative slope assume slope for min design velocity
-                height, width = d['Height'], d['Width']
-                shape, diameter = d['PIPESHAPE'], d['Diameter']
+                height, width = d['height'], d['width']
+                shape, diameter = d['pipeshape'], d['diameter']
                 slope = slope_at_velocity(2.5, diameter, height, width, shape)
 
             d['slope_calculated'] = slope * 100.0
@@ -266,15 +266,15 @@ def resolve_geom_gaps(G, nbunch=None):
     G1 = extend_elevation_data(G1)
     for u,v,d in G1.edges(data=True, nbunch=nbunch):
 
-        if d['PIPESHAPE'] not in ['BOX', 'CIR', 'EGG']:
-            d['PIPESHAPE'] = None #overwrite, rid of 'UNK' issues
+        if d['pipeshape'] not in ['BOX', 'CIR', 'EGG']:
+            d['pipeshape'] = None #overwrite, rid of 'UNK' issues
 
             #resolve geometry based on adjacent upstream sewer
             shape, diam, h, w, label, fid = resolve_geometry(G1, u, v)
 
             #overwrite attributes
-            d['PIPESHAPE'], d['Diameter'] = shape, diam
-            d['Height'], d['Width'], d['LABEL'] = h, w, label
+            d['pipeshape'], d['diameter'] = shape, diam
+            d['height'], d['width'], d['LABEL'] = h, w, label
             d['geometry_source'] = fid
 
     return G1
@@ -304,9 +304,9 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
 
         if invert is not None:
             for p in G1.predecessors(n):
-                if G1[p][n]['Slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[p]:
+                if G1[p][n]['slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[p]:
                     #trusted slope, can calculate trusted invert
-                    slope = G1[p][n]['Slope'] / 100.0
+                    slope = G1[p][n]['slope'] / 100.0
                     length = G1[p][n]['Shape_Leng']
                     G1.node[p]['invert_trusted'] = invert + (slope * length)
 
@@ -324,9 +324,9 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
 
         if invert is not None:
             for s in G1.successors(n):
-                if G1[n][s]['Slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[s]:
+                if G1[n][s]['slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[s]:
                     #trusted slope, can calculate trusted invert
-                    slope = G1[n][s]['Slope'] / 100.0
+                    slope = G1[n][s]['slope'] / 100.0
                     length = G1[n][s]['Shape_Leng']
                     G1.node[s]['invert_trusted'] = invert - (slope * length)
 
