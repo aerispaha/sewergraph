@@ -44,6 +44,34 @@ def graph_from_gdf(gdf):
     G.graph['crs'] = gdf.crs
     return G
 
+def transform_projection(G, to_crs = 'epsg:4326'):
+    '''
+    change the coordinate projection of Shapely "geometry" attributes in edges
+    and nodes in the graph
+    '''
+    from shapely.ops import transform
+    from functools import partial
+    try: import pyproj
+    except ImportError:
+        raise ImportError('pyproj module needed. get this package here: ',
+                        'https://pypi.python.org/pypi/pyproj')
+
+    #set up the projection parameters
+    st_plane = pyproj.Proj(G.graph['crs'], preserve_units=True)
+    wgs = pyproj.Proj(init=to_crs) #google maps, etc
+    project = partial(pyproj.transform, st_plane, wgs)
+
+    #apply transform to edge and node geometry attributes
+    for u,v, geometry in G.edges(data='geometry'):
+        if geometry:
+            G[u][v]['geometry'] = transform(project, geometry)
+
+    for n, geometry in G.nodes(data='geometry'):
+        if geometry:
+            G[u][v]['geometry'] = transform(project, geometry)
+
+    G.graph['crs'] = to_crs
+
 class SewerGraph(object):
     def __init__(self, shapefile=None, G=None, boundary_conditions=None, run=True,
                  return_period=0, name=None, gsi_capture={}):
