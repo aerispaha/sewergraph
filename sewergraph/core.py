@@ -123,7 +123,7 @@ class SewerGraph(object):
             self.boundary_conditions = boundary_conditions
 
             #accumulate drainage areas
-            G = accumulate_area(G)
+            G = accumulate_area(G, cumu_attr_name='cumulative_area')
             G = propogate_weighted_C(G, gsi_capture)
             G = resolve_slope_gaps(G)
             G = hhcalcs_on_network(G)
@@ -229,7 +229,7 @@ class SewerGraph(object):
                 phs_sheds = phs_rates
             )
             helpers.create_html_map(lyrs, filename, self.G,'phs_sheds.html')
-            print 'phs yea'
+            # print 'phs yea'
         else:
             lyrs = dict(conduits = helpers.write_geojson(self.G, inproj=inproj))
             helpers.create_html_map(lyrs, filename, self.G)
@@ -365,38 +365,42 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
 
     return G1
 
-def accumulate_area(G):
+def accumulate_downstream(G, accum_attr='local_area', split_attr='flow_split_frac',
+                          cumu_attr_name=None):
 
     """
-    loop through each node and accumulate area with its immediate
-    upstream nodes. where there's a flow split, apply the split fraction to
-    coded in the upstream edge (based on relative sewer capacity).
+    pass through the graph from upstream to downstream and accumulate the value
+    an attribute found in nodes and edges, and assign the accumulated value
+    as a new attribute in each node and edge.
+
+    Where there's a flow split, apply an optional split fraction to
+    coded in the upstream edge.
     """
     G1 = G.copy()
 
+    if cumu_attr_name is None:
+        cumu_attr_name = 'cumulative_{}'.format(accum_attr)
+
     for n in nx.topological_sort(G1):
-        area = sum(get_node_values(G1, [n], ['local_area', 'additional_area']))
-        area = area / 43560.0 #to acres
 
+        #grab value in current node
+        attrib_val = G1.node[n].get(accum_attr, 0)
+
+        #sum with cumulative values in upstream nodes and edges
         for p in G1.predecessors(n):
-            pred = G1.node[p] #upstream node
 
-            #add cumulative area in upstream node, apply flow split fraction
-            area += pred['cumulative_area'] * G1[p][n].get('flow_split_frac', 1)
+            #add cumulative attribute val in upstream node, apply flow split fraction
+            attrib_val += G1.node[p][cumu_attr_name] * G1[p][n].get(split_attr, 1)
 
-            #add area routed directly to sewer
-            area += G1[p][n].get('local_area', 0)
+            #add area routed directly to upstream edge/sewer
+            attrib_val += G1[p][n].get(accum_attr, 0)
 
-        G1.node[n]['cumulative_area'] = area
+            #store cumulative value in upstream edge
+            G1[p][n][cumu_attr_name] = attrib_val
 
-    #assign cumulative volume to each sewer
-    for u,v,d in G1.edges(data=True):
-        #grab the upstream node's total and direct area,
-        #and apply any flow split fraction
-        split_frac = d.get('flow_split_frac', 1)
-        direct = G1[u][v].get('local_area',0)
-        cumulative = (G1.node[u]['cumulative_area'] + direct)
-        d['cumulative_area'] = cumulative / 43560.
+
+        #store cumulative attribute value in current node
+        G1.node[n][cumu_attr_name] = attrib_val
 
     return G1
 
@@ -532,15 +536,99 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None,
                 #BUG this isn't assigning the right limiting sewer to sewers
                 #right at the split
 
+    return G1
 
+def assign_inflow_ratio(G, inflow_attr='TotalInflowV'):
+    '''
+    find junctions with multiple inflows and assign relative
+    contribution ratios to each upstream edge, based on the
+    ratio of the inflow_attr.
+
+    This assumes the inflow_attr is a node attribute that needs
+    to be assigned to each edge
+    '''
+
+    G2 = G.copy()
+
+    #first, write the TotalInflowV to each downstream edge
+    for n,inflow in G2.nodes(data=inflow_attr):
+        for s in G2.successors(n):
+            G2[n][s][inflow_attr] = inflow
+
+    #iterate through nodes with multiple inflows and assign relative contribution
+    #ratio to each upstream edge
+    junction_nodes = [n for n,d in G2.in_degree() if d > 1]
+    for j in junction_nodes:
+
+        #calculate total inflow
+        total = sum([inflow for _,_,inflow in G2.in_edges(j, data=inflow_attr)])
+
+        #calculate relative contribution
+        for u,v,inflow in G2.in_edges(j, data=inflow_attr):
+            G2[u][v]['relative_contribution'] = 1 #default
+            if total != 0:
+                G2[u][v]['relative_contribution'] = inflow / total
+
+
+    return G2
+
+def identify_outfalls(G):
+    '''
+    assign the downstream outfalls to which each node drains
+    '''
+
+    G1 = G.copy()
+
+    outfalls = [tn for tn in G1 if G1.out_degree(tn) == 0]
+    for tn in outfalls:
+        G1.node[tn]['outfalls'] = [tn]
+
+    G1 = G1.reverse()
+
+    # nodes 1 and 0 are outfalls
+    for n in nx.topological_sort(G1):
+
+        #collect downstream outfall data for immediately downstream nodes
+        dnoutfalls = G1.node[n].get('outfalls', [])
+        for p in G1.predecessors(n):
+            dnoutfalls += G1.node[p]['outfalls']
+
+        G1.node[n]['outfalls'] = dnoutfalls
+
+        #assign to edges
+        for s in G1.successors(n):
+            G1[n][s]['outfalls'] = dnoutfalls
+
+    return G1.reverse()
+
+def outfall_contribution(G):
+    '''
+    calculate the contribution of each point in the network to
+    downstream outfalls. VERY BRUTE FORCE AND SLOW
+    '''
+    G1 = G.copy()
+    from operator import mul
+    for u,v, data in G1.edges(data=True):
+        G1[u][v]['outfall_contrib'] = {}
+        for outfall in data['outfalls']:
+
+            rel_contrib = 1
+            for pth in nx.shortest_simple_paths(G1, source=u, target=outfall):
+
+                l = ([G1[i][j].get('relative_contribution', 1) for i,j in sg.pairwise(pth)])
+                rel_contrib = rel_contrib * reduce(mul, l, 1)
+
+            G1.node[u]['outfall_contrib'] = {outfall:rel_contrib}
+            G1[u][v]['outfall_contrib'].update({outfall:rel_contrib})
 
     return G1
 
-def analyze_flow_splits(G):
+def analyze_flow_splits(G, split_frac_attr='capacity'):
 
     """
     loop through nodes, find nodes with more than 1 outflow (flow split)
-    tag the immediately downstream sewers as flow splitters
+    tag the immediately downstream edges as flow splitters and calculate a
+    flow split ratio to apply to each of the downstream edges.
     """
 
     G1 = G.copy()
@@ -555,13 +643,13 @@ def analyze_flow_splits(G):
         G1.node[splitter]['flow_split_edges'] = dwn_edges
 
         #tag the flow split sewers
-        total_capacity = max(sum([G1[u][v]['capacity'] for u,v in dwn_edges]),1)
+        total_capacity = max(sum([G1[u][v][split_frac_attr] for u,v in dwn_edges]),1)
         for u,v in dwn_edges:
             G1[u][v]['flow_split'] = 'Y'
             if G1.in_degree(u)==0:
                 G1[u][v]['flow_split'] = 'summet'
                 G1.node[u]['flow_split'] = 'summet'
-            G1[u][v]['flow_split_frac'] = G1[u][v]['capacity'] / total_capacity
+            G1[u][v]['flow_split_frac'] = G1[u][v][split_frac_attr] / total_capacity
 
     return G1
 
