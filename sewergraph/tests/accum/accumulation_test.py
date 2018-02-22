@@ -31,8 +31,34 @@ def test_identify_outfalls():
 
     H1 = sg.identify_outfalls(H)
 
-    assert (G4.node[2]['outfalls'] == ['outfall3', 'outfall2', 'outfall1'])
-    assert (G4.node['b']['outfalls'] == ['outfall3', 'outfall2'])
+    assert (H1.node[2]['outfalls'] == ['outfall3', 'outfall2', 'outfall1'])
+    assert (H1.node['b']['outfalls'] == ['outfall3', 'outfall2'])
+
+
+def test_relative_outfall_contribution():
+    H = nx.DiGraph()
+    H.add_edges_from([('A','i'), ('B','i'), ('C','j'), ('D','k'),
+                      ('i', 'j'), ('j','k'),  ('k','OF2')])
+
+    H.node['A']['local_area'] = 1.0
+    H.node['B']['local_area'] = 2.0
+    H.node['C']['local_area'] = 1.0
+    H.node['D']['local_area'] = 1.0
+
+    #flow splits
+    H.add_edges_from([('j','j1'), ('j1', 'OF1')])
+    H['j']['j1']['flow_split_frac'] = 0.25
+    H['j']['k']['flow_split_frac'] = 0.75
+
+    H = sg.accumulate_downstream(H, accum_attr='local_area',
+                                 cumu_attr_name='cumulative_area')
+    H = sg.assign_inflow_ratio(H, inflow_attr='cumulative_area')
+    H = sg.relative_outfall_contribution(H)
+
+    assert(H.node['B']['outfall_contrib'] == {'OF2': 0.4, 'OF1': 0.5})
+    assert(H.node['j']['outfall_contrib'] == {'OF2': 0.8, 'OF1': 1.0})
+    assert(H.node['k']['outfall_contrib'] == {'OF2': 1.0})
+
 
 def test_houboutdat():
     assert 5==5

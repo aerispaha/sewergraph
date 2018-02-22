@@ -567,7 +567,7 @@ def assign_inflow_ratio(G, inflow_attr='TotalInflowV'):
         for u,v,inflow in G2.in_edges(j, data=inflow_attr):
             G2[u][v]['relative_contribution'] = 1 #default
             if total != 0:
-                G2[u][v]['relative_contribution'] = inflow / total
+                G2[u][v]['relative_contribution'] = float(inflow) / float(total)
 
 
     return G2
@@ -600,6 +600,45 @@ def identify_outfalls(G):
             G1[n][s]['outfalls'] = dnoutfalls
 
     return G1.reverse()
+
+def relative_outfall_contribution(G):
+
+    '''
+    calculate the relative contribution of node J to each
+    downstream outfall. This function creates a dictionary of
+    outfalls and relative contributions within each node of
+    the graph, G.
+    '''
+
+    G1 = G.copy()
+    #assign outfall contrib dicts to terminal nodes and edges
+    for tn in [n for n,d in G1.out_degree() if d == 0]:
+        G1.node[tn]['outfall_contrib'] = {tn:1.0}
+        for p in G1.predecessors(tn):
+            G1[p][tn]['outfall_contrib'] = {tn:1.0}
+
+    G1inv = G1.reverse()
+    for j in nx.topological_sort(G1inv):
+
+        #retrieve outfall contrib dict for j, or an empty dict
+        of_contrib_j = G1inv.node[j].get('outfall_contrib', {})
+        G1inv.node[j]['outfall_contrib'] = of_contrib_j
+        for s in G1inv.predecessors(j):
+
+            S = G1inv.node[s]
+            #print (s, S)
+            for OF, w_SOF in S['outfall_contrib'].items():
+
+                #get weight of node J w.r.t. OF by multiplying the
+                #weight of S w.r.t OF by any inflow ratio to a junction
+                #via edge JS. Store this in the outfall contrib dict in
+                #node J and edge JS
+                w_JOF = w_SOF * G1inv[s][j].get('relative_contribution', 1)
+                of_contrib_j.update({OF:w_JOF})
+
+            G1inv.node[j]['outfall_contrib'].update(of_contrib_j)
+
+    return G1inv.reverse()
 
 def outfall_contribution(G):
     '''
