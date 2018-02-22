@@ -33,10 +33,19 @@ def graph_from_shp(pth=r'test_processed_01', idcol='facilityid', crs={'init':'ep
 
     return G
 
-def gdf_from_graph(G):
+def gdf_from_graph(G, return_type='edges'):
     '''create a GeoDataFrame from a sewergraph, G.'''
-    df = nx.to_pandas_edgelist(G)
-    return gp.GeoDataFrame(df, crs = G.graph['crs'])
+    if return_type == 'edges':
+        df = nx.to_pandas_edgelist(G)
+        return gp.GeoDataFrame(df, crs = G.graph['crs'])
+
+    elif return_type == 'nodes':
+        node_dict = {n:d for n, d in G.nodes(data=True)}
+        df = pd.DataFrame(node_dict).T
+        return gp.GeoDataFrame(df, crs = G.graph['crs'])
+    else:
+        print ('incorrect return type. should be "edges" or "nodes".')
+
 
 def graph_from_gdf(gdf):
     '''create a sewergraph, G, from a GeoDataFrame'''
@@ -68,7 +77,7 @@ def transform_projection(G, to_crs = 'epsg:4326'):
 
     for n, geometry in G.nodes(data='geometry'):
         if geometry:
-            G[u][v]['geometry'] = transform(project, geometry)
+            G.node[n]['geometry'] = transform(project, geometry)
 
     G.graph['crs'] = to_crs
 
@@ -569,37 +578,7 @@ def assign_inflow_ratio(G, inflow_attr='TotalInflowV'):
             if total != 0:
                 G2[u][v]['relative_contribution'] = float(inflow) / float(total)
 
-
     return G2
-
-def identify_outfalls(G):
-    '''
-    assign the downstream outfalls to which each node drains
-    '''
-
-    G1 = G.copy()
-
-    outfalls = [tn for tn in G1 if G1.out_degree(tn) == 0]
-    for tn in outfalls:
-        G1.node[tn]['outfalls'] = [tn]
-
-    G1 = G1.reverse()
-
-    # nodes 1 and 0 are outfalls
-    for n in nx.topological_sort(G1):
-
-        #collect downstream outfall data for immediately downstream nodes
-        dnoutfalls = G1.node[n].get('outfalls', [])
-        for p in G1.predecessors(n):
-            dnoutfalls += G1.node[p]['outfalls']
-
-        G1.node[n]['outfalls'] = dnoutfalls
-
-        #assign to edges
-        for s in G1.successors(n):
-            G1[n][s]['outfalls'] = dnoutfalls
-
-    return G1.reverse()
 
 def relative_outfall_contribution(G):
 
@@ -625,6 +604,10 @@ def relative_outfall_contribution(G):
         G1inv.node[j]['outfall_contrib'] = of_contrib_j
         for s in G1inv.predecessors(j):
 
+            #retrieve outfall contrib dict for edge sj, or an empty dict
+            of_contrib_sj = G1inv[s][j].get('outfall_contrib', {})
+            G1inv[s][j]['outfall_contrib'] = of_contrib_j
+
             S = G1inv.node[s]
             #print (s, S)
             for OF, w_SOF in S['outfall_contrib'].items():
@@ -637,30 +620,9 @@ def relative_outfall_contribution(G):
                 of_contrib_j.update({OF:w_JOF})
 
             G1inv.node[j]['outfall_contrib'].update(of_contrib_j)
+            G1inv[s][j]['outfall_contrib'].update(of_contrib_j)
 
     return G1inv.reverse()
-
-def outfall_contribution(G):
-    '''
-    calculate the contribution of each point in the network to
-    downstream outfalls. VERY BRUTE FORCE AND SLOW
-    '''
-    G1 = G.copy()
-    from operator import mul
-    for u,v, data in G1.edges(data=True):
-        G1[u][v]['outfall_contrib'] = {}
-        for outfall in data['outfalls']:
-
-            rel_contrib = 1
-            for pth in nx.shortest_simple_paths(G1, source=u, target=outfall):
-
-                l = ([G1[i][j].get('relative_contribution', 1) for i,j in sg.pairwise(pth)])
-                rel_contrib = rel_contrib * reduce(mul, l, 1)
-
-            G1.node[u]['outfall_contrib'] = {outfall:rel_contrib}
-            G1[u][v]['outfall_contrib'].update({outfall:rel_contrib})
-
-    return G1
 
 def analyze_flow_splits(G, split_frac_attr='capacity'):
 
