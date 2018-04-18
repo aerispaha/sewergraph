@@ -569,8 +569,9 @@ def assign_inflow_ratio(G, inflow_attr='TotalInflowV'):
     junction_nodes = [n for n,d in G2.in_degree() if d > 1]
     for j in junction_nodes:
 
-        #calculate total inflow
-        total = sum([inflow for _,_,inflow in G2.in_edges(j, data=inflow_attr)])
+        #calculate total inflow, filter out any Nones
+        inflows = [inflow for _,_,inflow in G2.in_edges(j, data=inflow_attr)]
+        total = sum(filter(None, inflows))
 
         #calculate relative contribution
         for u,v,inflow in G2.in_edges(j, data=inflow_attr):
