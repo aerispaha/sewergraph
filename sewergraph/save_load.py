@@ -93,3 +93,29 @@ def to_swmm5_dataframes(G):
         coordinates = coordinates,
         xsections = xsect
     )
+
+def swmm5_polygons_from_sheds(shed_df):
+    """
+    with a GeoDataFrame of polygons, create a dataframe
+    with unstacked coordinates in the format of the SWMM5 inp
+    [Polygons] section
+    """
+    polys = shed_df[:]
+    polys.index = polys.Name
+    polys = polys[['geometry']]
+
+    def unstack_poly_coords(row):
+        xys = []
+        try:
+            xys = [(x,y) for x,y in row.geometry.boundary.coords]
+        except:
+            xys = [(x,y) for x,y in row.geometry.convex_hull.boundary.coords]
+
+        return xys
+
+    polys['coords'] = polys.apply(lambda row: unstack_poly_coords(row), axis=1)
+    polys['Subcatchment'] = polys.index
+    stacked_xys = polys.set_index('Subcatchment').coords.apply(pd.Series).stack().reset_index(level=-1, drop=True)
+    xys_df = pd.DataFrame(data=stacked_xys.values.tolist(), columns=['X-Coord', 'Y-Coord'], index=stacked_xys.index)
+
+    return xys_df
