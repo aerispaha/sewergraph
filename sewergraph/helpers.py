@@ -1,7 +1,7 @@
 """
 HELPER FUNCTIONS FOR TRACING OPERATIONS
 """
-from itertools import tee, izip
+from itertools import tee
 import networkx as nx
 from networkx.readwrite import json_graph
 import json
@@ -43,7 +43,7 @@ def data_from_adjacent_node(G, n, key='facilityid'):
         if key in d:
             return d[key]
         else:
-            print '{} not found in {}'.format(key, n)
+            print(('{} not found in {}'.format(key, n)))
 
 def get_node_values(G, nodes, parameters):
     """return a list of values in nodes having the parameter"""
@@ -77,12 +77,12 @@ def clean_dict(mydict, keep_keys=None, rm_keys=None):
     remove unwanted items in dicts
     """
     if keep_keys is not None:
-        for k in mydict.keys():
+        for k in list(mydict.keys()):
             if k not in keep_keys:
                 del mydict[k]
 
     if rm_keys is not None:
-        for k in mydict.keys():
+        for k in list(mydict.keys()):
             if k in rm_keys:
                 del mydict[k]
 
@@ -141,7 +141,7 @@ def pairwise(iterable):
     """
     a, b = tee(iterable)
     next(b, None)
-    return izip(a, b)
+    return list(zip(a, b))
 
 def random_alphanumeric(n=6):
 	import random
@@ -174,7 +174,7 @@ def write_geojson(G, filename=None, geomtype='linestring', inproj='epsg:2272'):
     if geomtype == 'point':
         for u, d in G1.nodes(data=True):
             try:
-                adjacent_n = G1[u].keys()[0]
+                adjacent_n = list(G1[u].keys())[0]
                 adjacent_edge =  G1[u][adjacent_n]
                 coordinates = json.loads(adjacent_edge['Json'])['coordinates'][0]
                 latlngs = [pyproj.transform(pa_plane, wgs, *xy) for xy in [coordinates]]
@@ -216,7 +216,7 @@ def create_html_map(geo_layers, filename, G, basemap='mapbox_base.html'):
         with open(filename, 'wb') as newmap:
             for line in bm:
                 if '//INSERT GEOJSON HERE ~~~~~' in line:
-                    for lyr, geodata in geo_layers.iteritems():
+                    for lyr, geodata in list(geo_layers.items()):
                         jsondata = geojson.dumps(geodata)
                         newmap.write('{} = {};\n'.format(lyr, jsondata))
 
@@ -228,13 +228,13 @@ def create_html_map(geo_layers, filename, G, basemap='mapbox_base.html'):
                     # newmap.write('net_json = {};\n'.format(json.dumps(net_dict)))
                     newmap.write('edges = {};\n'.format(json.dumps(edges)))
                     newmap.write('nodes = {};\n'.format(json.dumps(nodes)))
-
-            	if 'center: [-75.148946, 39.921685],' in line:
-					newmap.write('center:[{}, {}],\n'.format(c[0], c[1]))
+                    
+                if 'center: [-75.148946, 39.921685],' in line:
+                    newmap.write('center:[{}, {}],\n'.format(c[0], c[1]))
                 if '//INSERT BBOX HERE' in line:
                     newmap.write('map.fitBounds([[{}, {}], [{}, {}]]);\n'
                                  .format(bbox[0], bbox[1], bbox[2],
                                          bbox[3]))
 
                 else:
-					newmap.write(line)
+                    newmap.write(line)

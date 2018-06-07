@@ -7,6 +7,7 @@ from scipy.spatial import Voronoi
 from rasterstats import zonal_stats, point_query
 import ogr, osr, gdal
 import os
+from functools import reduce
 
 
 def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL):
@@ -179,7 +180,7 @@ def spatial_overlays(df1, df2, how='intersection'):
         df1['histreg']=df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
         pairs = df1['histreg'].to_dict()
         nei = []
-        for i,j in pairs.items():
+        for i,j in list(pairs.items()):
             for k in j:
                 nei.append([i,k])
 

@@ -1,6 +1,7 @@
 import networkx as nx
 import sewergraph as sg
 
+
 def test_downstream_accum():
 
     H = nx.DiGraph()
@@ -24,15 +25,15 @@ def test_downstream_accum():
     assert H.node['A']['cumulative_local_area'] == 3.0
 
 
-def test_identify_outfalls():
-    H = nx.DiGraph()
-    H.add_edges_from([(99,3), (3,2), (2,'outfall1'), (2,'a'), ('a','b'),
-                      ('b', 'outfall2'), ('b','outfall3')])
-
-    H1 = sg.identify_outfalls(H)
-
-    assert (H1.node[2]['outfalls'] == ['outfall3', 'outfall2', 'outfall1'])
-    assert (H1.node['b']['outfalls'] == ['outfall3', 'outfall2'])
+# def test_identify_outfalls():
+#     H = nx.DiGraph()
+#     H.add_edges_from([(99,3), (3,2), (2,'outfall1'), (2,'a'), ('a','b'),
+#                       ('b', 'outfall2'), ('b','outfall3')])
+#
+#     H1 = sg.identify_outfalls(H)
+#
+#     assert (H1.node[2]['outfalls'] == ['outfall3', 'outfall2', 'outfall1'])
+#     assert (H1.node['b']['outfalls'] == ['outfall3', 'outfall2'])
 
 
 def test_relative_outfall_contribution():

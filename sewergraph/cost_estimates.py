@@ -1,4 +1,4 @@
-from hhcalculations import replacement_sewer_size
+from .hhcalculations import replacement_sewer_size
 
 
 circular_unit_costs = {12: 570, 18: 570, 21: 610, 24: 680, 27: 760, 30: 860,

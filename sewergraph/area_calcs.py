@@ -8,6 +8,7 @@ import ogr, osr, gdal
 import os
 import sewergraph as sg
 import networkx as nx
+from functools import reduce
 
 
 def map_area_to_sewers(G, areas, idcol='facilityid'):
@@ -80,7 +81,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
 
     #set crs and create a subshed id column
     # sheds.crs = sewersdf.crs #{'init':'epsg:2272'}
-    print ('sewersdf1.crs: {}, sheds.crs: {}'.format(sewersdf1.crs, sheds.crs))
+    print(('sewersdf1.crs: {}, sheds.crs: {}'.format(sewersdf1.crs, sheds.crs)))
     sheds['SUBSHED_ID'] = sheds.index
 
     #spatially join the subsheds to the sewers, drop duplicates (sheds touching multiple sewers)
@@ -322,7 +323,7 @@ def spatial_overlays(df1, df2, how='intersection'):
         df1['histreg']=df1.bbox.apply(lambda x:list(spatial_index.intersection(x)))
         pairs = df1['histreg'].to_dict()
         nei = []
-        for i,j in pairs.items():
+        for i,j in list(pairs.items()):
             for k in j:
                 nei.append([i,k])
 

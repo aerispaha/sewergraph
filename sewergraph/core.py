@@ -1,13 +1,12 @@
 import networkx as nx
 import pandas as pd
 import geopandas as gp
-from helpers import (pairwise, open_file,
+from .helpers import (pairwise, open_file,
                      clean_network_data, get_node_values, round_shapefile_node_keys)
-import helpers
-from hhcalculations import philly_storm_intensity, hhcalcs_on_network
-from resolve_data import resolve_geom_gaps, resolve_slope_gaps, assign_inverts
-from kpi import SewerShedKPI
-import cost_estimates
+from .hhcalculations import philly_storm_intensity, hhcalcs_on_network
+from .resolve_data import resolve_geom_gaps, resolve_slope_gaps, assign_inverts
+from .kpi import SewerShedKPI
+from . import cost_estimates
 import os
 
 def graph_from_shp(pth=r'test_processed_01', idcol='facilityid', crs={'init':'epsg:4326'}):
@@ -327,7 +326,7 @@ def add_boundary_conditions(G, data):
     """
     for n,d in G.nodes(data=True):
         if 'facilityid' in d:
-            for fid in data.keys():
+            for fid in list(data.keys()):
                 if fid in d['facilityid']:
                     #print 'adding data to {}'.format(fid)
                     d.update(data[fid])
@@ -571,7 +570,7 @@ def assign_inflow_ratio(G, inflow_attr='TotalInflowV'):
 
         #calculate total inflow, filter out any Nones
         inflows = [inflow for _,_,inflow in G2.in_edges(j, data=inflow_attr)]
-        total = sum(filter(None, inflows))
+        total = sum([_f for _f in inflows if _f])
 
         #calculate relative contribution
         for u,v,inflow in G2.in_edges(j, data=inflow_attr):
@@ -611,7 +610,7 @@ def relative_outfall_contribution(G):
 
             S = G1inv.node[s]
             #print (s, S)
-            for OF, w_SOF in S['outfall_contrib'].items():
+            for OF, w_SOF in list(S['outfall_contrib'].items()):
 
                 #get weight of node J w.r.t. OF by multiplying the
                 #weight of S w.r.t OF by any inflow ratio to a junction
@@ -685,7 +684,7 @@ def set_flow_direction(G1, out):
         G2.remove_edge(u,v)
         #print (u,v, d)
         G2.add_edge(v,u)
-        for k,val in d.iteritems():
+        for k,val in list(d.items()):
             G2[v][u][k] = val
 
 

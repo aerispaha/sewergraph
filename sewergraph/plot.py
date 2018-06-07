@@ -1,6 +1,6 @@
 from plotly.graph_objs import Figure, Scatter, Bar, Layout
 import numpy as np
-import helpers
+from . import helpers
 
 def to_map(G, filename=None, startfile=True, phs_area=False, inproj='epsg:2272'):
 
@@ -17,7 +17,7 @@ def to_map(G, filename=None, startfile=True, phs_area=False, inproj='epsg:2272')
             phs_sheds = phs_rates
         )
         helpers.create_html_map(lyrs, filename, G,'phs_sheds.html')
-        print 'phs yea'
+        print('phs yea')
     else:
         lyrs = dict(conduits = helpers.write_geojson(G, inproj=inproj))
         helpers.create_html_map(lyrs, filename, G)

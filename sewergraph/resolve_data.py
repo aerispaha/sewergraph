@@ -1,7 +1,7 @@
 from itertools import chain
 from sewergraph import helpers
 import networkx as nx
-from hhcalculations import slope_at_velocity, mannings_velocity
+from .hhcalculations import slope_at_velocity, mannings_velocity
 
 
 def preprocess_data(G):
@@ -14,9 +14,7 @@ def preprocess_data(G):
         w = G[u][v]['width']
 
         #standardize unknowns
-        if geom not in ['BOX', 'CIR', 'EGG'] or sum(filter(None,
-                                                           [diam, h, w]
-                                                           )
+        if geom not in ['BOX', 'CIR', 'EGG'] or sum([_f for _f in [diam, h, w] if _f]
                                                     ) == 0:
             d['pipeshape'] = None
         elif (geom == 'CIR' and diam == 0 and h > 0 and w > 0):

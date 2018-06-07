@@ -2,7 +2,7 @@
 Key performance indicators for sewer sheds
 """
 import pandas as pd
-from helpers import subset
+from .helpers import subset
 
 class SewerShedKPI(object):
 
