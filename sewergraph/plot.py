@@ -2,31 +2,6 @@ from plotly.graph_objs import Figure, Scatter, Bar, Layout
 import numpy as np
 from . import helpers
 
-def to_map(G, filename=None, startfile=True, phs_area=False, inproj='epsg:2272'):
-
-    if filename is None:
-        filename = os.path.join(shapefile_path, 'map.html')
-
-    if phs_area:
-        phs_rates = [{'facilityid':d['facilityid'],
-                      'limiting_rate':d['limiting_rate']}
-                     for n, d in G.nodes(data=True)
-                     if 'facilityid' in d]
-        lyrs = dict(
-            conduits = helpers.write_geojson(G, inproj=inproj),
-            phs_sheds = phs_rates
-        )
-        helpers.create_html_map(lyrs, filename, G,'phs_sheds.html')
-        print('phs yea')
-    else:
-        lyrs = dict(conduits = helpers.write_geojson(G, inproj=inproj))
-        helpers.create_html_map(lyrs, filename, G)
-
-    if startfile:
-        open_file(filename)
-
-    return filename
-
 def plot_profile(G, path):
 
     l = 0

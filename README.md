@@ -15,3 +15,35 @@ What are we hoping to accomplish here.
 - import/export open-source spatial data formats (shapefiles, geojson)
 - some visualization
 - basic hydrologic/hydraulic calculations (Rational, Mannings)
+
+
+### Example
+```python
+
+G = nx.read_shp(shapefile)
+
+#clean up the network (rm unecessary DataConv fields, isolated nodes)
+G = clean_network_data(G)
+G = round_shapefile_node_keys(G)
+G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
+G = resolve_geom_gaps(G)
+
+#perform capacity calcs
+G = hhcalcs_on_network(G)
+
+#id flow split sewers and calculate split fractions
+G = analyze_flow_splits(G)
+
+if boundary_conditions is not None:
+    add_boundary_conditions(G, boundary_conditions)
+self.boundary_conditions = boundary_conditions
+
+#accumulate drainage areas
+G = accumulate_area(G, cumu_attr_name='cumulative_area')
+G = propogate_weighted_C(G, gsi_capture)
+G = resolve_slope_gaps(G)
+G = hhcalcs_on_network(G)
+
+#accumulating travel times
+G = accumulate_travel_time(G)
+```

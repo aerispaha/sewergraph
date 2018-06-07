@@ -1,5 +1,5 @@
 from .hhcalculations import replacement_sewer_size
-
+from .core import gdf_from_graph
 
 circular_unit_costs = {12: 570, 18: 570, 21: 610, 24: 680, 27: 760, 30: 860,
                        36: 1020, 42: 1200, 48: 1400, 54: 1550, 60: 1700,
@@ -42,3 +42,14 @@ def replacements_for_capacity(G, enforced_cap_frac=1.0):
             d.pop('replacement_capacity', None)
             d.pop('replacement_unit_cost_per_ft', None)
             d.pop('replacement_cost', None)
+
+def estimate_sewer_replacement_costs(G, target_cap_frac=1.0):
+    """
+    calculate the required replacement size of all sewers to meet the
+    target_cap_frac
+    """
+    replacements_for_capacity(G, target_cap_frac)
+
+    df = gdf_from_graph(G, return_type='edges')
+    millions = df[df.replacement_cost > 0].replacement_cost.sum() / 10**6
+    return millions
