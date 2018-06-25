@@ -14,11 +14,13 @@ from functools import reduce
 def map_area_to_sewers(G, areas, idcol='facilityid'):
     a = areas.set_index(idcol)
     sewers = sg.gdf_from_graph(G)
-    sewerids = sewers[[idcol, 'u', 'v']]
+    sewerids = sewers[[idcol, 'source', 'target']]
 
-    a = a.join(sewerids)
-    a = a.set_index(['u', 'v'])[['local_area']].T.apply(tuple).to_dict('records')[0]
-    nx.set_edge_attributes(G, 'local_area', a)
+    # a = a.join(sewerids)
+    # a = a.set_index(['source', 'target'])[['local_area']].T.apply(tuple).to_dict('records')[0]
+    s1 = sewerids.set_index(idcol).join(a)
+    local_areas = {(row.source,row.target):row.local_area for id, row in s1.iterrows()}
+    nx.set_edge_attributes(G, local_areas, 'local_area')
 
 
 def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,

@@ -1,12 +1,9 @@
 import networkx as nx
 import pandas as pd
 import geopandas as gp
-from .helpers import (pairwise, open_file,
-                     clean_network_data, get_node_values, round_shapefile_node_keys)
+from .helpers import pairwise, generate_facility_id, get_node_values
 from .hhcalculations import philly_storm_intensity, hhcalcs_on_network
 from .resolve_data import resolve_geom_gaps, resolve_slope_gaps, assign_inverts
-from .kpi import SewerShedKPI
-from . import cost_estimates
 import os
 
 def graph_from_shp(pth=r'test_processed_01', idcol='facilityid', crs={'init':'epsg:4326'}):
@@ -28,7 +25,7 @@ def graph_from_shp(pth=r'test_processed_01', idcol='facilityid', crs={'init':'ep
 
         #generate a uniq id if necessary
         if idcol not in d:
-            d[idcol] = helpers.generate_facility_id()
+            d[idcol] = generate_facility_id()
 
     return G
 
