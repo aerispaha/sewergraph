@@ -4,17 +4,35 @@
     <meta charset='utf-8' />
     <title></title>
     <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
-    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.32.1/mapbox-gl.js'></script>
-    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.32.1/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.39.1/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.39.1/mapbox-gl.css' rel='stylesheet' />
     <link href='https://www.mapbox.com/base/latest/base.css' rel='stylesheet' />
     <style>
         body { margin:0; padding:0; }
-        #map { position:absolute; top:0; bottom:0; width:100%; }
+        /*#map { position:absolute; top:0; bottom:0; width:100%; }*/
+        .fullscreen { position:absolute; top:0; bottom:0; width:100%; }
     </style>
 </head>
 <body>
 
-<div id='map'></div>
+  <!-- <div class='col12 pad4 contain fill-navy dark'>
+    <div id='map' class='center quiet'></div>
+
+    <div class='col4 pad2 fill-darken1 pin-left'>
+      Left panel with content
+    </div>
+  </div> -->
+<!-- <div id='map'></div> -->
+<div class='fullscreen' class='col12 pad4 contain fill-navy dark clip'>
+  <!-- <div class='center quiet'>Map Canvas</div> -->
+  <div id='map' class='fullscreen'></div>
+  <!-- <div class='pin-right pad2'>
+    <a href='#details-pane' class='button'>Trigger</a>
+  </div> -->
+  <!-- <div id='details-pane' class='col4 pad2 fill-darken1 pin-left offcanvas-left animate'>
+    <a href='#' class='fill-darken2 pad1 icon close'></a>
+  </div> -->
+</div>
 
 <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
@@ -46,12 +64,32 @@ var get_upstream_facility_ids = function(G, target){
   up_fids = up_fid_arr.filter(function(n){ return n != undefined });
   return up_fids;
 }
-var sewer_source, parcel_source;
+var get_upstream_fids = function(G, target){
+  //jsnetworkx trace upstream
+    paths = jsnx.shortestPath(G, {target:target});
+    var up_fids = new Set();
+    jsnx.forEach(paths, function(n) {
+
+  // up_fids.add(G.node.get(n[0]).FACILITYID)
+  edge = G.getEdgeData(n[1][0], n[1][1])
+  // console.log(edge)
+  up_fids.add(edge)
+    });
+    let up_fid_arr = Array.from(up_fids);
+    up_fids = up_fid_arr.filter(function(n){ return n != undefined });
+    final = [];
+    for (var key in up_fids){
+        final.push(up_fids[key]['facilityid'])
+    }
+    return final;
+}
+var sewer_source, parcel_source, sheds_source;
 
 map.on('load', function() {
 
   //load the data into the map
   sewer_source = map.addSource('sewer-data', {'type': 'geojson', 'data': conduits});
+  sheds_source = map.addSource('sheds-data', {'type': 'geojson', 'data': sheds});
 
   map.addLayer({
         "id": "sewer-tc",
@@ -73,7 +111,18 @@ map.on('load', function() {
               'line-opacity': 0.4,
   			'line-width':15,
           },
-  		'filter':["==", "FACILITYID", ""],
+  		'filter':["==", "facilityid", ""],
+      });
+  map.addLayer({
+          "id": "sewer-upstream",
+          'type': 'line',
+          "source": "sewer-data",
+          'paint': {
+              'line-color': "#22c16b",//"#8384a4",
+              'line-opacity': 0.4,
+  			'line-width':15,
+          },
+  		'filter':["==", "facilityid", ""],
       });
   map.addLayer({
       "id": "sewer",
@@ -81,35 +130,44 @@ map.on('load', function() {
       "source": "sewer-data",
       'paint': {
           'line-color': {
-              property: 'capacity_fraction',
+              property: 'intensity',
               stops: [
-                // [5, '#64bab4'],
-                // [50, '#4dbc49'],
-                // [100, '#8764ba'],
-                // [300  , '#cc5151'],
-                // [500, '#ea30e4']
                 [0, '#50716c'],
-                // [0.02, '#343332'],
-                [0.50, '#64bab4'],
-                [2.00  ,'#c94242'],//'#cc0000'],
-                [5.00, '#ea30e4']
+                [1.0, '#64bab4'],
+                [6.00  ,'#c94242'],
+                [50.00, '#ea30e4']
               ]
         },
-          'line-opacity': 0.75,
-  	      'line-width':3,
+          'line-opacity': 1,//0.75,
+  	      'line-width':{
+            property: 'cumulative_area',
+            stops: [
+              [0,  0.25],
+              // [48,  10],
+              [10, 3],
+              [200, 5],
+              [5000, 25]
+            ]
+          },
       },
-      'filter':["!has", "flow_split"],
+      'layout':{
+        // 'line-join':'round',
+        'line-cap':'round',
+      },
+      // 'filter':["!has", "flow_split"],
 	});
   map.addLayer({
         'id': 'sheds',
-        'source': 'composite',
-        'source-layer': 'theissen2-41fqsr',
+        // 'source': 'composite',
+        // 'source-layer': 'theissen2-41fqsr',
+        'source':'sheds-data',
         'type': 'fill',
+
         'paint': {
             'fill-color': 'rgb(74,52,183)',
             'fill-opacity': 0.25,
         },
-        'filter':["==", "FACILITYID", ""],
+        'filter':["==", "facilityid", ""],
     });
     map.addLayer({
             "id": "sewer-splits",
@@ -148,7 +206,7 @@ map.on('load', function() {
                 'line-width':30,
               },
         'line-join':'round',
-    		'filter':["==", "FACILITYID", ""],
+    		'filter':["==", "facilityid", ""],
         });
 
 
@@ -164,12 +222,18 @@ map.on('load', function() {
 
         var features = map.queryRenderedFeatures(clickbox, { layers: ['sewer', 'sewer-splits'] });
         if (!features.length) {
-			      map.setFilter("sewer-hover", ["==", "FACILITYID", ""]);
+            // nothing clickable was clicked, return to default view
+			      map.setFilter("sewer-hover", ["==", "facilityid", ""]);
             map.setFilter("sewer-tc", ["in", "dn_node", ""]);
-            map.setFilter("sheds", ["==", "FACILITYID", ""]);
-            map.setFilter("sewer-limiting", ["==", "FACILITYID", ""]);
-            // map.setFilter("sewer-descendants", ["==", "FACILITYID", ""]);
+            map.setFilter("sheds", ["==", "facilityid", ""]);
+            map.setFilter("sewer-limiting", ["==", "facilityid", ""]);
+            // map.setFilter("sewer-descendants", ["==", "facilityid", ""]);
+
+            //hide the detail pane
+            // $('#details-pane').removeClass('active');
             return;
+        }else {
+          // $('#details-pane').addClass('active');
         }
 
         var feature = features[0];
@@ -178,7 +242,9 @@ map.on('load', function() {
     //highlight the tc path
     tc_nodes = JSON.parse(feature.properties.tc_path)
     // up_nodes = JSON.parse(feature.properties.up_fids)
-    up_fids = get_upstream_facility_ids(G, feature.properties.up_node)
+    // up_fids = get_upstream_facility_ids(G, feature.properties.up_node);
+    up_fids = get_upstream_fids(G, feature.properties.up_node);
+
 
     // descendants = JSON.parse(feature.properties.descendants)
 
@@ -189,12 +255,12 @@ map.on('load', function() {
       ["in", "up_node"].concat(tc_nodes),
     ]
     map.setFilter("sewer-tc", filter);
-    map.setFilter("sheds", ["in", "FACILITYID"].concat(up_fids));
-    // map.setFilter("sewer-descendants", ["in", "FACILITYID"].concat(descendants));
+    map.setFilter("sheds", ["in", "facilityid"].concat(up_fids));
+    // map.setFilter("sewer-descendants", ["in", "facilityid"].concat(descendants));
 
 		//highlight whats been clicked
-		map.setFilter("sewer-hover", ["==", "FACILITYID", feature.properties.FACILITYID]);
-    map.setFilter("sewer-limiting", ["==", "FACILITYID", feature.properties.limiting_sewer]);
+		map.setFilter("sewer-hover", ["==", "facilityid", feature.properties.facilityid]);
+    map.setFilter("sewer-limiting", ["==", "facilityid", feature.properties.limiting_sewer]);
 
     var props = feature.properties
     var slope = Math.round(props.Slope * 100) / 100

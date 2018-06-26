@@ -2,24 +2,24 @@
 Key performance indicators for sewer sheds
 """
 import pandas as pd
-from helpers import subset
+from .helpers import subset
 
 class SewerShedKPI(object):
 
     def __init__(self, net):
 
         """
-        calculate shed-wide KPIs given a SewerNet object
+        calculate shed-wide KPIs given a SewerGraph object
         """
 
         #HYDROLOGIC
         nodes = net.nodes()
-        self.shed_area_ac =  nodes.Shape_Area.sum() / 43560.0
+        self.shed_area_ac =  nodes.local_area.sum() / 43560.0
         self.tc_min = nodes.tc.max()
 
         #wt avg C
-        self.weighted_avg_c = [(nodes.runoff_coefficient * nodes.Shape_Area).sum()
-                               / nodes.Shape_Area.sum()]
+        self.weighted_avg_c = [(nodes.runoff_coefficient * nodes.local_area).sum()
+                               / nodes.local_area.sum()]
 
         #HYDRAULIC
         df = net.conduits()
@@ -70,7 +70,7 @@ class SewerShedKPI(object):
         self.sewers = pd.DataFrame(hydr_dict, index = index, columns=cols)
 
         #total length of conduits divided by total shed area (miles/square mile)
-        self.drainage_density = (df.Shape_Leng.sum() / nodes.Shape_Area.sum()) * 5280
+        self.drainage_density = (df.Shape_Leng.sum() / nodes.local_area.sum()) * 5280
         self.capacity_deficit = net.estimate_sewer_replacement_costs() #millions
         self.deficit_per_acre = self.capacity_deficit / self.shed_area_ac
 

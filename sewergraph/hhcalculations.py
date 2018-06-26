@@ -1,49 +1,36 @@
 import math
 
-def philly_storm_intensity(tc, return_period=0):
-	"""
-	given a tc, return the intensity of the
-	Philadelphia Water Dept design storm (in/hr)
-	"""
-	#default, "Philly" design storm
-	I = 116.0 / ( tc + 17.0)
-
-	if return_period == 1:
-		I = 100.0 / ( tc + 18.0)
-	if return_period == 2:
-		I = 131.0 / ( tc + 21.0)
-	if return_period == 5:
-		I = 171.0 / ( tc + 23.5)
-	if return_period == 10:
-		I = 214.0 / ( tc + 26.0)
-	if return_period == 25:
-		I = 252.0 / ( tc + 28.0)
-	if return_period == 50:
-		I = 289.0 / ( tc + 30.0)
-	if return_period == 100:
-		I = 325.0 / ( tc + 32.0)
-
-	return I
-
 def hhcalcs_on_network(G):
+	"""
+	For each sewer (edge) in the network, G, calculate the velocity of gravity
+	flow, full-flow capacity, and full-flow travel time through the length of
+	the sewer. This sets attributes in 'velocity', 'capacity',
+	and 'travel_time'.
 
+	Parameters
+	----------
+	G : Networkx DiGraph
+		Graph of a sewer network with edges having the Slope, Height, Width
+		pipeshape, and diameter parameters.
+	"""
 	G1 = G.copy()
 
-	for u,v, data in G1.edges_iter(data=True):
+	for u,v, data in G1.edges(data=True):
 
 		#velocity
-		# diameter = max( data['Diameter'], data['Height'])
+		# diameter = max( data['diameter'], data['height'])
 		if 'slope_calculated' in data:
 			slope = max(data['slope_calculated'], 0.01)
-			# data['Slope'] = slope
+			# data['slope'] = slope
 		else:
-			slope = max(data['Slope'], 0.1)
+			slope = max(data['slope'], 0.1)
 		data['slope_used_in_calcs'] = slope
 
-		height, width = data['Height'], data['Width']
-		shape, diameter = data['PIPESHAPE'], data['Diameter']
+		height, width = data['height'], data['width']
+		shape, diameter = data['pipeshape'], data['diameter']
 
-		# print height, width, shape, diameter, data['FACILITYID']
+		# print height, width, shape, diameter, data['facilityid']
+		#BUG this 'shape' should not be a string
 		if 'shape' is None:
 			shape = 'CIR'
 			diameter = max(diameter, height)
@@ -59,7 +46,7 @@ def hhcalcs_on_network(G):
 		data['capacity'] = A * V
 
 		#travel time
-		T = (data['Shape_Leng'] / V) / 60.0 # minutes
+		T = (data['length'] / V) / 60.0 # minutes
 		data['travel_time'] = T
 
 	return G1
@@ -153,3 +140,29 @@ def replacement_sewer_size(design_q, slope):
 		w += 6
 
 	return d, h, w, capacity
+
+
+def philly_storm_intensity(tc, return_period=0):
+	"""
+	given a tc, return the intensity of the
+	Philadelphia Water Dept design storm (in/hr)
+	"""
+	#default, "Philly" design storm
+	I = 116.0 / ( tc + 17.0)
+
+	if return_period == 1:
+		I = 100.0 / ( tc + 18.0)
+	if return_period == 2:
+		I = 131.0 / ( tc + 21.0)
+	if return_period == 5:
+		I = 171.0 / ( tc + 23.5)
+	if return_period == 10:
+		I = 214.0 / ( tc + 26.0)
+	if return_period == 25:
+		I = 252.0 / ( tc + 28.0)
+	if return_period == 50:
+		I = 289.0 / ( tc + 30.0)
+	if return_period == 100:
+		I = 325.0 / ( tc + 32.0)
+
+	return I
