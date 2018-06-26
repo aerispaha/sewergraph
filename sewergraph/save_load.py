@@ -60,7 +60,7 @@ def to_swmm5_dataframes(G):
                                                conduits.index.get_loc(dup).sum()
                                                )]
     conduits.index=cols
-    conduits = conduits[['up_node', 'dn_node', 'Shape_Leng']]
+    conduits = conduits[['up_node', 'dn_node', 'length']]
     conduits['ManningN'] = 0.013
     conduits['InletOffset'] = 0
     conduits['OutletOffset'] = 0

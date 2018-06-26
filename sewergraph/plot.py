@@ -22,7 +22,7 @@ def plot_profile(G, path):
         rims.append(rim_el)
         xs.append(l)
         fids.append(sewer['facilityid'])
-        l += sewer['Shape_Leng']
+        l += sewer['length']
 
 
     inv_go = Scatter(
@@ -90,7 +90,7 @@ def capacity_peak_comparison_plt(df, name ='Sewers', title='Peak Flow vs Sewer C
     return fig, data, layout
 
 
-def cdf_go(net, parameter='capacity_fraction', cumu_param = 'Shape_Leng',
+def cdf_go(net, parameter='capacity_fraction', cumu_param = 'length',
            normal=1, units='', df=None, name =None):
     """
     create a Plotly graph object of a cumulative distribution function across
@@ -122,7 +122,7 @@ def cdf_go(net, parameter='capacity_fraction', cumu_param = 'Shape_Leng',
 def cumulative_distribution(df, name = 'Capacity Surplus',
                             title='Sewer Capacity Surplus By Length',
                             parameter='capacity_fraction',
-                            cumu_param = 'Shape_Leng'
+                            cumu_param = 'length'
                             ):
 
 

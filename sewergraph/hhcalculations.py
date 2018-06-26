@@ -1,30 +1,5 @@
 import math
 
-def philly_storm_intensity(tc, return_period=0):
-	"""
-	given a tc, return the intensity of the
-	Philadelphia Water Dept design storm (in/hr)
-	"""
-	#default, "Philly" design storm
-	I = 116.0 / ( tc + 17.0)
-
-	if return_period == 1:
-		I = 100.0 / ( tc + 18.0)
-	if return_period == 2:
-		I = 131.0 / ( tc + 21.0)
-	if return_period == 5:
-		I = 171.0 / ( tc + 23.5)
-	if return_period == 10:
-		I = 214.0 / ( tc + 26.0)
-	if return_period == 25:
-		I = 252.0 / ( tc + 28.0)
-	if return_period == 50:
-		I = 289.0 / ( tc + 30.0)
-	if return_period == 100:
-		I = 325.0 / ( tc + 32.0)
-
-	return I
-
 def hhcalcs_on_network(G):
 	"""
 	For each sewer (edge) in the network, G, calculate the velocity of gravity
@@ -71,7 +46,7 @@ def hhcalcs_on_network(G):
 		data['capacity'] = A * V
 
 		#travel time
-		T = (data['Shape_Leng'] / V) / 60.0 # minutes
+		T = (data['length'] / V) / 60.0 # minutes
 		data['travel_time'] = T
 
 	return G1
@@ -165,3 +140,29 @@ def replacement_sewer_size(design_q, slope):
 		w += 6
 
 	return d, h, w, capacity
+
+
+def philly_storm_intensity(tc, return_period=0):
+	"""
+	given a tc, return the intensity of the
+	Philadelphia Water Dept design storm (in/hr)
+	"""
+	#default, "Philly" design storm
+	I = 116.0 / ( tc + 17.0)
+
+	if return_period == 1:
+		I = 100.0 / ( tc + 18.0)
+	if return_period == 2:
+		I = 131.0 / ( tc + 21.0)
+	if return_period == 5:
+		I = 171.0 / ( tc + 23.5)
+	if return_period == 10:
+		I = 214.0 / ( tc + 26.0)
+	if return_period == 25:
+		I = 252.0 / ( tc + 28.0)
+	if return_period == 50:
+		I = 289.0 / ( tc + 30.0)
+	if return_period == 100:
+		I = 325.0 / ( tc + 32.0)
+
+	return I

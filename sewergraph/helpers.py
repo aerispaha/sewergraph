@@ -55,7 +55,7 @@ def get_node_values(G, nodes, parameters):
     return upstream_vals
 
 def subset(df, lb=None, ub=None, param='capacity_fraction',
-           sum_param='Shape_Leng'):
+           sum_param='length'):
 
     """
     subset a Dataframe between the provided lowerbound and upperbound (lb, ub)
@@ -122,7 +122,7 @@ def clean_network_data(G):
                             'local_area', 'facilityid', 'ELEVATION_', 'ELEVATIONI',
                             'FacilityNa', 'RASTERVALU']
         edge_keeper_keys = ['diameter', 'height','width', 'facilityid','Json',
-                            'slope', 'Shape_Leng', 'Year_Insta', 'pipeshape',
+                            'slope', 'length', 'Year_Insta', 'pipeshape',
                             'PIPE_TYPE', 'STICKERLIN', 'LABEL','ELEVATION_',
                             'ELEVATIONI','slope_calculated',
                             'slope_calculated_fids', 'local_area']

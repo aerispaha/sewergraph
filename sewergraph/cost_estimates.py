@@ -25,7 +25,7 @@ def replacements_for_capacity(G, enforced_cap_frac=1.0):
             else:
                 unit_cost = h * w * rect_cost_per_sqft / 144.0
 
-            total_cost = unit_cost * d['Shape_Leng']
+            total_cost = unit_cost * d['length']
 
             d['replacement_diam'] = diam
             d['replacement_h'] = h

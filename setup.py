@@ -6,24 +6,23 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
-VERSION = '0.0.4'  # also update __init__.py
+VERSION = '0.1.0'  # also update __init__.py
 AUTHOR_NAME = 'Adam Erispaha'
 AUTHOR_EMAIL = 'aerispaha@gmail.com'
 
 install_requires = [
-    'networkx>=2',
-    'pandas',
     'geopandas',
+    'shapely',
+    'pandas',
+    'networkx>=2',
     'numpy',
     'geojson',
-    'plotly',
     'pyproj',
-    'shapely',
     ]
 
 setup(name='sewergraph',
       version=VERSION,
-      description='Tool for graph calculations on sewer networks',
+      description='Tools for graph calculations on sewer networks',
       author=AUTHOR_NAME,
       url='https://github.com/aerispaha/trace',
       author_email=AUTHOR_EMAIL,

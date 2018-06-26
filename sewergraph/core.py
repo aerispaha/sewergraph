@@ -19,6 +19,7 @@ def graph_from_shp(pth=r'test_processed_01', idcol='facilityid', crs={'init':'ep
 
         #create a shapely line geometry object
         d['geometry'] = wkt.loads(d['Wkt'])
+        d['length'] = d['geometry'].length
 
         #get rid of other geom formats
         del d['Wkb'], d['Wkt'], d['Json']
@@ -77,17 +78,6 @@ def transform_projection(G, to_crs = 'epsg:4326'):
 
     G.graph['crs'] = to_crs
 
-def add_boundary_conditions(G, data):
-    """
-    add additional data to nodes in the sewer_net.G. Do this
-    before running the accumulate_area
-    """
-    for n,d in G.nodes(data=True):
-        if 'facilityid' in d:
-            for fid in list(data.keys()):
-                if fid in d['facilityid']:
-                    #print 'adding data to {}'.format(fid)
-                    d.update(data[fid])
 
 def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
     G1 = G.copy()
@@ -131,8 +121,8 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
 
     return G1
 
-def accumulate_downstream(G, accum_attr='local_area', split_attr='flow_split_frac',
-                          cumu_attr_name=None):
+def accumulate_downstream(G, accum_attr='local_area', cumu_attr_name=None,
+                          split_attr='flow_split_frac'):
 
     """
     pass through the graph from upstream to downstream and accumulate the value

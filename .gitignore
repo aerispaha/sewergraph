@@ -4,7 +4,6 @@ private.py
 private/
 # Setuptools distribution folder.
 /dist/
-data/
 maps/
 # Python egg metadata, regenerated from source files by setuptools.
 /*.egg-info

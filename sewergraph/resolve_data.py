@@ -229,7 +229,7 @@ def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
     #calculate the slope
     if (up_inv and dn_inv) is not None:
         #get the length between the trusted inverts
-        length = nx.shortest_path_length(G, source=i, target=j, weight='Shape_Leng')
+        length = nx.shortest_path_length(G, source=i, target=j, weight='length')
         slope = (up_inv - dn_inv) / length
         return slope, i, j, length
 
@@ -305,7 +305,7 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
                 if G1[p][n]['slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[p]:
                     #trusted slope, can calculate trusted invert
                     slope = G1[p][n]['slope'] / 100.0
-                    length = G1[p][n]['Shape_Leng']
+                    length = G1[p][n]['length']
                     G1.node[p]['invert_trusted'] = invert + (slope * length)
 
     for n in topo_sorted_nodes:
@@ -325,14 +325,14 @@ def extend_elevation_data(G, data_key='ELEVATIONI', null_val=0):
                 if G1[n][s]['slope'] !=0 and ('invert_trusted' and data_key) not in G1.node[s]:
                     #trusted slope, can calculate trusted invert
                     slope = G1[n][s]['slope'] / 100.0
-                    length = G1[n][s]['Shape_Leng']
+                    length = G1[n][s]['length']
                     G1.node[s]['invert_trusted'] = invert - (slope * length)
 
     return G1
 
 def elevation_change(G, s, t):
         """elevation difference between two nodes in graph, G"""
-        length = G[s][t]['Shape_Leng']
+        length = G[s][t]['length']
         slope = G[s][t]['slope_used_in_calcs']
         delta = (slope / 100.0) * length
         return delta

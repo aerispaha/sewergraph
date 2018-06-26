@@ -1,6 +1,9 @@
 import networkx as nx
 import sewergraph as sg
+import os
 
+TEST_DIR = os.path.abspath(os.path.dirname(__file__))
+DATA_DIR = os.path.join(TEST_DIR, 'data')
 
 def test_downstream_accum():
 
@@ -60,6 +63,18 @@ def test_relative_outfall_contribution():
     assert(H.node['j']['outfall_contrib'] == {'OF2': 0.8, 'OF1': 1.0})
     assert(H.node['k']['outfall_contrib'] == {'OF2': 1.0})
 
+def test_graph_from_shp():
 
-def test_houboutdat():
-    assert 5==5
+    #read shapefile into DiGraph
+    shp_pth = os.path.join(DATA_DIR, 'sample_sewer_network_1.shp')
+    G = sg.graph_from_shp(shp_pth)
+
+    #basic shapefile read tests
+    edge = G[19][59]
+    assert (edge['facilityid'] == 'A58064DF')
+    assert (round(edge['local_area'], 3) == 119043.525)
+
+    #accumulate drainage area
+    G = sg.core.accumulate_downstream(G, 'local_area', 'total_area')
+    edge = G[19][59]
+    assert (round(edge['total_area'], 3) == 4233504.422)
