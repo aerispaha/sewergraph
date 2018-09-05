@@ -402,6 +402,38 @@ def analyze_flow_splits(G, split_frac_attr='capacity'):
 
     return G1
 
+def map_to_lower_res_graph(G1, G2, rm_nodes=None, return_agg=False):
+    '''
+    given a skeletonized graph G2 benchmarked to a baseline
+    graph G1, generate a map of nodes removed from G1 to their closest
+    nodes in G2
+    '''
+
+    node_map = {}
+    agg_map = {}
+    if rm_nodes is None:
+        rm_nodes = [n for n in G1 if n not in G2]
+    elif any([n not in G1 for n in rm_nodes]):
+        raise('WHOA rm_node not found in G1')
+
+    for n in rm_nodes:
+        #node is removed in newer model. Find the closest
+        #downstream node inflows can be redirected to (a node that
+        #exists in model2)
+        for dn in nx.dfs_preorder_nodes(G1, n):
+            # print ('n:{} down: {}'.format(n, dn))
+            #if downstream node the new model, save and break
+            if dn in G2:
+                node_map.update({n:dn})
+                agg_map.setdefault(dn, set()).add(n)
+                # print ('mapped: {}'.format({n:dn}))
+                break
+
+    if return_agg:
+        return agg_map
+    else:
+        return node_map
+
 def find_edge(facilityid):
     '''find an edge given a facilityid'''
     for u,v,fid in G.edges(data='facilityid'):
