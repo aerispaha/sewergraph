@@ -420,6 +420,7 @@ def map_to_lower_res_graph(G1, G2, rm_nodes=None, return_agg=False):
         #node is removed in newer model. Find the closest
         #downstream node inflows can be redirected to (a node that
         #exists in model2)
+        found_dn = 0
         for dn in nx.dfs_preorder_nodes(G1, n):
             # print ('n:{} down: {}'.format(n, dn))
             #if downstream node the new model, save and break
@@ -427,7 +428,15 @@ def map_to_lower_res_graph(G1, G2, rm_nodes=None, return_agg=False):
                 node_map.update({n:dn})
                 agg_map.setdefault(dn, set()).add(n)
                 # print ('mapped: {}'.format({n:dn}))
+                found_dn += 1
+
                 break
+        if found_dn == 0:
+            print ('unmatched node!: {}'.format(n))
+
+    # update with nodes to keep
+    # node_map.update({str(n):str(n) for n in G1 if n in G2})
+    # agg_map.update({str(n):{str(n)} for n in G1 if n in G2})
 
     if return_agg:
         return agg_map
