@@ -10,4 +10,4 @@ from .helpers import *
 from .area_calcs import *
 
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
