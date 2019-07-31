@@ -1,0 +1,5 @@
+# Build dependencies
+pytest
+autopep8
+
+# Run dependencies
