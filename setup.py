@@ -9,6 +9,13 @@ def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 
+def get_description():
+    """Get long description."""
+    with open(os.path.join(HERE, 'README.md'), 'r') as f:
+        data = f.read()
+    return data
+
+
 def get_version(module='sewergraph'):
     """Get version."""
     with open(os.path.join(HERE, module, '__init__.py'), 'r') as f:
@@ -37,7 +44,8 @@ setup(name='sewergraph',
       author_email='aerispaha@gmail.com',
       packages=find_packages(exclude=('tests')),
       install_requires=REQUIREMENTS,
-      long_description=read('README.rst'),
+      long_description=get_description(),
+      long_description_content_type="text/markdown",
       platforms="OS Independent",
       license="MIT License",
       classifiers=[
