@@ -1,19 +1,16 @@
-from shapely.geometry import MultiLineString, LineString
-import shapely
-import geopandas as gpd
 import pandas as pd
 import numpy as np
-from scipy.spatial import Voronoi
-import ogr, osr, gdal
 import os
-import sewergraph as sg
 import networkx as nx
 from functools import reduce
+
+import sewergraph as sg
+import sewergraph.save_load
 
 
 def map_area_to_sewers(G, areas, idcol='facilityid'):
     a = areas.set_index(idcol)
-    sewers = sg.gdf_from_graph(G)
+    sewers = sewergraph.save_load.gdf_from_graph(G)
     sewerids = sewers[[idcol, 'source', 'target']]
 
     # a = a.join(sewerids)
@@ -32,6 +29,14 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
 
     study_area: Shapely polygon
     """
+
+    try:
+        import geopandas as gp
+        from scipy.spatial import Voronoi
+        import shapely
+    except:
+        ImportError('scipy.spatial, GeoPandas, and shapely are required for drainage_areas_from_sewers')
+
     in_crs = sewersdf.crs
     working_crs = {'init':'epsg:2272'}
     #convert to state plane so we can get lengths in feet
@@ -40,7 +45,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     sewersdf1 = sewersdf1.loc[sewersdf1.length > min_length]
 
     #create a Shapely object
-    sewer_shapes = MultiLineString([g for g in sewersdf1.geometry])
+    sewer_shapes = shapely.geometry.MultiLineString([g for g in sewersdf1.geometry])
 
     #array of points to be used in Voronoi generation
     #create points spaced at 10 feet of sewer
@@ -63,7 +68,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
 
     #create shapely LineStrings of drainage areas boundaries
     drainage_bounds = [
-        LineString(vor.vertices[line])
+        shapely.geometry.LineString(vor.vertices[line])
         for line in vor.ridge_vertices
         if -1 not in line
     ]
@@ -77,7 +82,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     #create GeoDataFrame of shed pieces
     shed_geoms = [g for g in shed_pieces.geoms]
     shed_areas_sf = [shed.area for shed in shed_geoms]
-    sheds = gpd.GeoDataFrame(geometry=shed_geoms,
+    sheds = gp.GeoDataFrame(geometry=shed_geoms,
                              data={'local_area':shed_areas_sf},
                              crs = sewersdf1.crs)
 
@@ -87,7 +92,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     sheds['SUBSHED_ID'] = sheds.index
 
     #spatially join the subsheds to the sewers, drop duplicates (sheds touching multiple sewers)
-    sewer_sheds = gpd.sjoin(sheds, sewersdf1, how='inner')
+    sewer_sheds = gp.sjoin(sheds, sewersdf1, how='inner')
     sewer_sheds = sewer_sheds.drop_duplicates(subset='SUBSHED_ID')
 
     #dissolve by sewer FACILITYID, add local_area column
@@ -102,7 +107,14 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
 def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
                                min_length=35):
 
-    all_sheds = gpd.GeoDataFrame()
+    try:
+        from scipy.spatial import Voronoi
+        import geopandas as gp
+        import shapely
+    except:
+        ImportError('scipy.spatial, GeoPandas, and shapely is required for drainage_areas_from_sewers')
+
+    all_sheds = gp.GeoDataFrame()
     study_boundary = study_area_chunks.unary_union
     for study_area in study_area_chunks.geometry:
         print ('study_area processing')
@@ -115,7 +127,7 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
         sewersdf2 = sewersdf1[sewersdf1.intersects(study_area)]
 
         #create a Shapely object
-        sewer_shapes = MultiLineString([g for g in sewersdf1.geometry])
+        sewer_shapes = shapely.geometry.MultiLineString([g for g in sewersdf1.geometry])
 
         #array of points to be used in Voronoi generation
         #create points spaced at 10 feet of sewer
@@ -138,7 +150,7 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
 
         #create shapely LineStrings of drainage areas boundaries
         drainage_bounds = [
-            LineString(vor.vertices[line])
+            shapely.geometry.LineString(vor.vertices[line])
             for line in vor.ridge_vertices
             if -1 not in line
         ]
@@ -155,14 +167,14 @@ def drainage_areas_chunked(sewersdf, SEWER_ID_COL, study_area_chunks,
             #create GeoDataFrame of shed pieces
             shed_geoms = [g for g in shed_pieces.geoms]
             #shed_areas_sf = [shed.area for shed in shed_geoms]
-            sheds = gpd.GeoDataFrame(geometry=shed_geoms)#, data={'local_area':shed_areas_sf})
+            sheds = gp.GeoDataFrame(geometry=shed_geoms)#, data={'local_area':shed_areas_sf})
 
             #set crs and create a subshed id column
             sheds.crs = sewersdf1.crs #{'init':'epsg:2272'}
             sheds['SUBSHED_ID'] = sheds.index
 
             #spatially join the subsheds to the sewers, drop duplicates (sheds touching multiple sewers)
-            sewer_sheds = gpd.sjoin(sheds, sewersdf1, how='inner')
+            sewer_sheds = gp.sjoin(sheds, sewersdf1, how='inner')
             sewer_sheds = sewer_sheds.drop_duplicates(subset='SUBSHED_ID')
 
             #dissolve by sewer FACILITYID, add local_area column
@@ -240,7 +252,11 @@ def array2raster(newRasterfn,rasterOrigin,pixelWidth,pixelHeight, crs, array):
     """
     create a raster file from a numpy array
     """
-
+    try:
+        import gdal
+    except:
+        raise ImportError('Failed to import gdal. This is required for in the '
+                          'array2raster function')
     cols = array.shape[1]
     rows = array.shape[0]
     originX = rasterOrigin[0]
@@ -260,9 +276,11 @@ def slope_stats_in_sheds(sheds_pth, dem_pth, cell_size=3.2809045, stats='mean me
     Return: array of dicts with stats for each zone
     """
     try:
+        import osr
         from rasterstats import zonal_stats
     except:
-        raise ImportError('rasterstats not found. Try pip install rasterstats')
+        raise ImportError('Failed to import osr and/or rasterstats, required for '
+                          'the slope_stats_in_sheds function.')
 
     #open the dem raster, convert to np array
     raster = gdal.Open(dem_pth)
@@ -314,6 +332,13 @@ def spatial_overlays(df1, df2, how='intersection'):
     '''Compute overlay intersection of two
         GeoPandasDataFrames df1 and df2
     '''
+
+    try:
+        import geopandas as gp
+    except:
+        raise ImportError('Failed to import GeoPandas. This is required for in the '
+                          'spatial_overlays function')
+
     df1 = df1.copy()
     df2 = df2.copy()
     df1['geometry'] = df1.geometry.buffer(0)
@@ -329,11 +354,11 @@ def spatial_overlays(df1, df2, how='intersection'):
             for k in j:
                 nei.append([i,k])
 
-        pairs = gpd.GeoDataFrame(nei, columns=['idx1','idx2'], crs=df1.crs)
+        pairs = gp.GeoDataFrame(nei, columns=['idx1','idx2'], crs=df1.crs)
         pairs = pairs.merge(df1, left_on='idx1', right_index=True)
         pairs = pairs.merge(df2, left_on='idx2', right_index=True, suffixes=['_1','_2'])
         pairs['Intersection'] = pairs.apply(lambda x: (x['geometry_1'].intersection(x['geometry_2'])).buffer(0), axis=1)
-        pairs = gpd.GeoDataFrame(pairs, columns=pairs.columns, crs=df1.crs)
+        pairs = gp.GeoDataFrame(pairs, columns=pairs.columns, crs=df1.crs)
         cols = pairs.columns.tolist()
         cols.remove('geometry_1')
         cols.remove('geometry_2')
@@ -342,7 +367,7 @@ def spatial_overlays(df1, df2, how='intersection'):
         cols.remove('Intersection')
         dfinter = pairs[cols+['Intersection']].copy()
         dfinter.rename(columns={'Intersection':'geometry'}, inplace=True)
-        dfinter = gpd.GeoDataFrame(dfinter, columns=dfinter.columns, crs=pairs.crs)
+        dfinter = gp.GeoDataFrame(dfinter, columns=dfinter.columns, crs=pairs.crs)
         dfinter = dfinter.loc[dfinter.geometry.is_empty==False]
         return dfinter
     elif how=='difference':

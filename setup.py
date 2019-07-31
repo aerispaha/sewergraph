@@ -22,14 +22,9 @@ def get_version(module='sewergraph'):
 
 
 REQUIREMENTS = [
-    'geopandas',
-    'scipy',
-    'shapely',
     'pandas',
     'networkx>=2',
     'numpy',
-    'geojson',
-    'pyproj',
     ]
 
 

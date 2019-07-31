@@ -1,5 +1,5 @@
 from .hhcalculations import replacement_sewer_size
-from .core import gdf_from_graph
+from sewergraph.save_load import gdf_from_graph
 
 circular_unit_costs = {12: 570, 18: 570, 21: 610, 24: 680, 27: 760, 30: 860,
                        36: 1020, 42: 1200, 48: 1400, 54: 1550, 60: 1700,

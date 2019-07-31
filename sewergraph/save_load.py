@@ -7,22 +7,9 @@
 
 
 import networkx as nx
-from .core import gdf_from_graph
+import pandas as pd
+from sewergraph import generate_facility_id
 
-def load_shapefile(filename):
-    """
-    Load a shapefile from disk and convert the node/edge attributes to
-    correct data types.
-    Parameters
-    ----------
-    filename : string
-        the name of the graphml file (including file extension)
-    Returns
-    -------
-    networkx digraph
-    """
-
-    pass
 
 def to_swmm5_dataframes(G):
     """
@@ -119,3 +106,68 @@ def swmm5_polygons_from_sheds(shed_df):
     xys_df = pd.DataFrame(data=stacked_xys.values.tolist(), columns=['X-Coord', 'Y-Coord'], index=stacked_xys.index)
 
     return xys_df
+
+
+def graph_from_shp(pth=r'test_processed_01', idcol='facilityid', crs={'init': 'epsg:4326'}):
+    """
+    Load a shapefile from disk and convert the node/edge attributes to
+    correct data types.
+    Parameters
+    ----------
+    pth : string
+    Returns
+    -------
+    networkx digraph
+    """
+
+    try:
+        from shapely import wkt
+    except ImportError:
+        raise ImportError('shapely module needed. get it here: '
+                          'https://pypi.org/project/Shapely/')
+
+    G = nx.read_shp(pth, )
+    G.graph['crs'] = crs
+    G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
+
+    for u, v, d in G.edges(data=True):
+
+        # create a shapely line geometry object
+        d['geometry'] = wkt.loads(d['Wkt'])
+        d['length'] = d['geometry'].length
+
+        # get rid of other geom formats
+        del d['Wkb'], d['Wkt'], d['Json']
+
+        # generate a uniq id if necessary
+        if idcol not in d:
+            d[idcol] = generate_facility_id()
+
+    return G
+
+
+def gdf_from_graph(G, return_type='edges'):
+    '''create a GeoDataFrame from a sewergraph, G.'''
+    try:
+        import geopandas as gp
+    except ImportError:
+        raise ImportError('GeoPandas module needed. Download with conda: '
+                          'conda install geopandas')
+
+    if return_type == 'edges':
+        df = nx.to_pandas_edgelist(G)
+        return gp.GeoDataFrame(df, crs=G.graph['crs'])
+
+    elif return_type == 'nodes':
+        node_dict = {n: d for n, d in G.nodes(data=True)}
+        df = pd.DataFrame(node_dict).T
+        return gp.GeoDataFrame(df, crs=G.graph['crs'])
+    else:
+        print('incorrect return type. should be "edges" or "nodes".')
+
+
+def graph_from_gdf(gdf):
+    '''create a sewergraph, G, from a GeoDataFrame'''
+    G = nx.from_pandas_edgelist(gdf, create_using=nx.DiGraph(), edge_attr=True)
+    G.graph['crs'] = gdf.crs
+    return G

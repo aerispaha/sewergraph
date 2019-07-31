@@ -3,12 +3,8 @@ HELPER FUNCTIONS FOR TRACING OPERATIONS
 """
 from itertools import tee
 import networkx as nx
-from networkx.readwrite import json_graph
-import json
-from geojson import Feature, LineString, Point, FeatureCollection
 import os, sys, subprocess
 import pandas as pd
-import geopandas as gp
 import uuid
 
 def generate_facility_id(length = 8):
@@ -123,3 +119,34 @@ def random_alphanumeric(n=6):
 	import random
 	chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
 	return ''.join(random.choice(chars) for i in range(n))
+
+
+def transform_projection(G, to_crs='epsg:4326'):
+    '''
+    change the coordinate projection of Shapely "geometry" attributes in edges
+    and nodes in the graph
+    '''
+    from functools import partial
+    try:
+        from shapely.ops import transform
+        import pyproj
+    except ImportError:
+        raise ImportError('pyproj and shapely modules needed. get them here: ',
+                          'https://pypi.org/project/pyproj/, '
+                          'https://pypi.org/project/Shapely/')
+
+    # set up the projection parameters
+    st_plane = pyproj.Proj(G.graph['crs'], preserve_units=True)
+    wgs = pyproj.Proj(init=to_crs)  # google maps, etc
+    project = partial(pyproj.transform, st_plane, wgs)
+
+    # apply transform to edge and node geometry attributes
+    for u, v, geometry in G.edges(data='geometry'):
+        if geometry:
+            G[u][v]['geometry'] = transform(project, geometry)
+
+    for n, geometry in G.nodes(data='geometry'):
+        if geometry:
+            G.node[n]['geometry'] = transform(project, geometry)
+
+    G.graph['crs'] = to_crs
