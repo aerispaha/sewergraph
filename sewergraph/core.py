@@ -270,7 +270,13 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None,
         G1.node[tn]['limiting_sewer'] = None
 
         for p in G1.predecessors(tn):
-            G1[p][tn]['limiting_rate'] = G1[p][tn][parameter]
+            edge = G1[p][tn]
+            if isinstance(edge, nx.classes.coreviews.AtlasView):
+                for fid, ed in edge.items():
+                    ed['limiting_rate'] = ed[parameter]
+
+            else:
+                G1[p][tn]['limiting_rate'] = G1[p][tn][parameter]
 
     for n in list(reversed(list(nx.topological_sort(G1)))):
         dn_node_rates = [(G1.node[s]['limiting_rate'],
