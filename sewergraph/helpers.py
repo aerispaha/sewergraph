@@ -3,12 +3,8 @@ HELPER FUNCTIONS FOR TRACING OPERATIONS
 """
 from itertools import tee
 import networkx as nx
-from networkx.readwrite import json_graph
-import json
-from geojson import Feature, LineString, Point, FeatureCollection
 import os, sys, subprocess
 import pandas as pd
-import geopandas as gp
 import uuid
 
 def generate_facility_id(length = 8):
@@ -107,30 +103,6 @@ def round_shapefile_node_keys(G):
     mapping = {n:tuple([round(i, 2) for i in n]) for n in G.nodes()}
     return nx.relabel_nodes(G, mapping)
 
-def clean_network_data(G):
-    """
-    remove unecessary fields from DataConv from the network, remove isolated
-    nodes
-    """
-    G1 = G.copy()
-
-    #remove isolated nodes
-    G1.remove_nodes_from(nx.isolates(G1))
-
-    for u,v,d in G1.edges(data=True):
-        node_keeper_keys = ['X_Coord', 'Y_Coord','cumulative_area',
-                            'local_area', 'facilityid', 'ELEVATION_', 'ELEVATIONI',
-                            'FacilityNa', 'RASTERVALU']
-        edge_keeper_keys = ['diameter', 'height','width', 'facilityid','Json',
-                            'slope', 'length', 'Year_Insta', 'pipeshape',
-                            'PIPE_TYPE', 'STICKERLIN', 'LABEL','ELEVATION_',
-                            'ELEVATIONI','slope_calculated',
-                            'slope_calculated_fids', 'local_area']
-        clean_dict(G1.node[u], node_keeper_keys)
-        clean_dict(G1.node[v], node_keeper_keys)
-        clean_dict(d, edge_keeper_keys)
-
-    return G1
 
 def pairwise(iterable):
     """
@@ -149,48 +121,32 @@ def random_alphanumeric(n=6):
 	return ''.join(random.choice(chars) for i in range(n))
 
 
-def create_html_map(geo_layers, filename, G, basemap='mapbox_base.html'):
-    """
-    geo_layers: dict of dicts
-        dictionary of layers and their geojson data
-    """
-    import geojson
+def transform_projection(G, to_crs='epsg:4326'):
+    '''
+    change the coordinate projection of Shapely "geometry" attributes in edges
+    and nodes in the graph
+    '''
+    from functools import partial
+    try:
+        from shapely.ops import transform
+        import pyproj
+    except ImportError:
+        raise ImportError('pyproj and shapely modules needed. get them here: ',
+                          'https://pypi.org/project/pyproj/, '
+                          'https://pypi.org/project/Shapely/')
 
-    # This is the project root #HACK
-    ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    BASEMAP_PATH = os.path.join(ROOT_DIR,'basemaps',basemap)
-    # basemap_path = r'P:\06_Tools\sewertrace\basemaps\mapbox_base.html'
+    # set up the projection parameters
+    st_plane = pyproj.Proj(G.graph['crs'], preserve_units=True)
+    wgs = pyproj.Proj(init=to_crs)  # google maps, etc
+    project = partial(pyproj.transform, st_plane, wgs)
 
-    #get center point
-    gdf = gp.GeoDataFrame(nx.to_pandas_edgelist(G)[['geometry']])
-    hull = gdf.unary_union.convex_hull
-    c = (hull.centroid.x, hull.centroid.y)
-    bbox = hull.bounds
+    # apply transform to edge and node geometry attributes
+    for u, v, geometry in G.edges(data='geometry'):
+        if geometry:
+            G[u][v]['geometry'] = transform(project, geometry)
 
-    with open(BASEMAP_PATH, 'r') as bm:
-        # filename = os.path.join(os.path.dirname(geocondpath), self.alt_report.model.name + '.html')
-        with open(filename, 'wb') as newmap:
-            for line in bm:
-                if '//INSERT GEOJSON HERE ~~~~~' in line:
-                    for lyr, geodata in list(geo_layers.items()):
-                        jsondata = geojson.dumps(geodata)
-                        newmap.write('{} = {};\n'.format(lyr, jsondata))
+    for n, geometry in G.nodes(data='geometry'):
+        if geometry:
+            G.node[n]['geometry'] = transform(project, geometry)
 
-                    #write the network as a json object
-                    # net_dict = json_graph.node_link_data(G)
-                    edges = list([(u,v, {'facilityid':d}) for u,v,d in G.edges.data('facilityid')])
-                    nodes = list(G.nodes())
-
-                    # newmap.write('net_json = {};\n'.format(json.dumps(net_dict)))
-                    newmap.write('edges = {};\n'.format(json.dumps(edges)))
-                    newmap.write('nodes = {};\n'.format(json.dumps(nodes)))
-
-                if 'center: [-75.148946, 39.921685],' in line:
-                    newmap.write('center:[{}, {}],\n'.format(c[0], c[1]))
-                if '//INSERT BBOX HERE' in line:
-                    newmap.write('map.fitBounds([[{}, {}], [{}, {}]]);\n'
-                                 .format(bbox[0], bbox[1], bbox[2],
-                                         bbox[3]))
-
-                else:
-                    newmap.write(line)
+    G.graph['crs'] = to_crs

@@ -12,9 +12,13 @@ collections systems:
 - design capacity analysis
 
 ## Installation
-Since sewergraph is inspired by [osmnx](https://github.com/gboeing/osmnx), this
-package depends on [GeoPandas](https://github.com/geopandas/geopandas), [Networkx](https://github.com/networkx/networkx), and a handful of other
-packages. It's recommended to install GeoPandas with conda first, then install
+Inspired by [osmnx](https://github.com/gboeing/osmnx), sewergraph depends on [Networkx](https://github.com/networkx/networkx) and [Pandas](https://pandas.pydata.org/). For most use cases, installation is easy:
+```bash
+$ pip install sewergraph
+```
+
+Additional functionality is provided that makes use of [GeoPandas](https://github.com/geopandas/geopandas),
+scipy and Shapely. It's recommended to install GeoPandas with conda first, then install
 sewergraph via pip:
 
 ```bash
