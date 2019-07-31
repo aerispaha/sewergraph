@@ -1,4 +1,9 @@
-# Network Analysis for Sewers
+# sewergraph
+*v0.1.2*
+
+[![Build status](https://ci.appveyor.com/api/projects/status/tjxw4f4vhm79v3fu/branch/master?svg=true)](https://ci.appveyor.com/project/aerispaha/sewergraph/branch/master)
+[![Build Status](https://travis-ci.com/aerispaha/sewergraph.svg?branch=master)](https://travis-ci.com/aerispaha/sewergraph)
+
 Building upon Networkx, this package provides tools for analysis and manipulation
 of sewer network data.
 
