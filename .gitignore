@@ -9,3 +9,10 @@ maps/
 /*.egg-info
 
 .DS_Store
+
+#testing
+__pycache__/
+.pytest_cache/
+
+notebooks/
+.idea/
