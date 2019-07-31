@@ -22,9 +22,11 @@ install:
   - conda info -a
 
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION geopandas
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION geopandas pytest
   - source activate test-environment
   - python setup.py install
+  # make sure we're using the correct pytest
+  - which pytest
 
 # command to run tests
 script:
