@@ -1,10 +1,7 @@
 geopandas==0.10.2
 networkx==2.6.3
-ogr==0.37.0
 geojson==2.5.0
 
-# Build dependencies
+# dependencies for tests
 pytest
 autopep8
-
-# Run dependencies

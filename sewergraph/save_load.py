@@ -180,7 +180,9 @@ def graph_from_gdfs(links, nodes=None, upstream_node_field='InletNode', downstre
 
     # create a nx.MultiDiGraph from the combined model links, add node data, set CRS
     G = multidigraph_from_edges(links, upstream_node_field, target=downstream_node_field)
-    G.add_nodes_from(zip(nodes.index, nodes.to_dict(orient='records')))
+
+    if nodes is not None:
+        G.add_nodes_from(zip(nodes.index, nodes.to_dict(orient='records')))
 
     # create geojson geometry objects for each graph element
     for u, v, k, coords in G.edges(data='coords', keys=True):
