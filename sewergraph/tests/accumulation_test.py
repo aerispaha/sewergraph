@@ -5,6 +5,7 @@ import os
 TEST_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(TEST_DIR, 'data')
 
+
 def test_downstream_accum():
 
     H = nx.DiGraph()
@@ -62,6 +63,7 @@ def test_relative_outfall_contribution():
     assert(H.node['B']['outfall_contrib'] == {'OF2': 0.4, 'OF1': 0.5})
     assert(H.node['j']['outfall_contrib'] == {'OF2': 0.8, 'OF1': 1.0})
     assert(H.node['k']['outfall_contrib'] == {'OF2': 1.0})
+
 
 def test_graph_from_shp():
 

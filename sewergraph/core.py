@@ -6,20 +6,20 @@ from .hhcalculations import philly_storm_intensity
 def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
     G1 = G.copy()
 
-    for u, v, d in G1.edges(data=True, nbunch=nbunch):
+    for u, v, k, d in G1.edges(data=True, nbunch=nbunch, keys=True):
         # grab the upstream node's total and direct area,
         # and apply any flow split fraction
         split_frac = d.get('flow_split_frac', 1)
-        direct_ac = (G1[u][v].get('local_area', 0) / 43560.0) * split_frac
-        acres = (G1.node[u]['cumulative_area'] * split_frac / 43560.0) + direct_ac
-        C = G1.node[u].get('runoff_coefficient', 0.85)  # direct area
-        Cwt = G1.node[u].get('runoff_coefficient_weighted', 0.85)
+        direct_ac = (G1[u][v][k].get('local_area', 0) / 43560.0) * split_frac
+        acres = (G1.nodes[u]['cumulative_area'] * split_frac / 43560.0) + direct_ac
+        C = G1.nodes[u].get('runoff_coefficient', 0.85)  # direct area
+        Cwt = G1.nodes[u].get('runoff_coefficient_weighted', 0.85)
 
-        G1.node[u]['runoff_coefficient'] = C  # set it if its not there
+        G1.nodes[u]['runoff_coefficient'] = C  # set it if its not there
 
         # grab the tc and path from the upstream node
-        tc_path = G1.node[u]['tc_path']
-        tc = G1.node[u]['tc']
+        tc_path = G1.nodes[u]['tc_path']
+        tc = G1.nodes[u]['tc']
         intensity = philly_storm_intensity(tc, return_period)  # in/hr
         peakQ = Cwt * intensity * acres  # q = C*I*A, (cfs)
 
@@ -32,7 +32,7 @@ def hydrologic_calcs_on_sewers(G, nbunch=None, return_period=0):
         d['peakQ'] = peakQ
         d['runoff_coefficient'] = C
         d['runoff_coefficient_weighted'] = Cwt
-        d['CA'] = G1.node[u].get('CA', None)
+        d['CA'] = G1.nodes[u].get('CA', None)
 
         # compute the capacity fraction (hack prevent div/0)
         d['capacity_fraction'] = peakQ / max(d['capacity'], 1.0)
@@ -63,21 +63,23 @@ def accumulate_downstream(G, accum_attr='local_area', cumu_attr_name=None,
     for n in nx.topological_sort(G1):
 
         # grab value in current node
-        attrib_val = G1.node[n].get(accum_attr, 0)
+        attrib_val = G1.nodes[n].get(accum_attr, 0)
 
         # sum with cumulative values in upstream nodes and edges
         for p in G1.predecessors(n):
-            # add cumulative attribute val in upstream node, apply flow split fraction
-            attrib_val += G1.node[p][cumu_attr_name] * G1[p][n].get(split_attr, 1)
+            for k in G1[p][n]:
 
-            # add area routed directly to upstream edge/sewer
-            attrib_val += G1[p][n].get(accum_attr, 0)
+                # add cumulative attribute val in upstream node, apply flow split fraction
+                attrib_val += G1.nodes[p][cumu_attr_name] * G1[p][n][k].get(split_attr, 1)
 
-            # store cumulative value in upstream edge
-            G1[p][n][cumu_attr_name] = attrib_val
+                # add area routed directly to upstream edge/sewer
+                attrib_val += G1[p][n][k].get(accum_attr, 0)
+
+                # store cumulative value in upstream edge
+                G1.edges[(p, n, k)][cumu_attr_name] = attrib_val
 
         # store cumulative attribute value in current node
-        G1.node[n][cumu_attr_name] = attrib_val
+        G1.nodes[n][cumu_attr_name] = attrib_val
 
     return G1
 
@@ -92,23 +94,23 @@ def propogate_weighted_C(G, gsi_capture={}):
 
     for n in nx.topological_sort(G1):
         area = sum(get_node_values(G1, [n], ['local_area', 'additional_area']))
-        C = G1.node[n].get('runoff_coefficient', 0.85)
+        C = G1.nodes[n].get('runoff_coefficient', 0.85)
         area = area / 43560.0  # to acres
         CA = C * area
 
         # set runoff_coefficient if not already set
-        G1.node[n]['runoff_coefficient'] = C
+        G1.nodes[n]['runoff_coefficient'] = C
 
         for p in G1.predecessors(n):
-            pred = G1.node[p]  # upstream node
+            pred = G1.nodes[p]  # upstream node
             # area += pred['cumulative_area'] * G1[p][n].get('flow_split_frac', 1)
             CA += pred['CA'] * G1[p][n].get('flow_split_frac', 1.0)
 
             # add area routed directly to sewer
             CA += G1[p][n].get('local_area', 0) * G1[p][n].get('runoff_coefficient', 0.85)
 
-        # G1.node[n]['cumulative_area'] = area
-        node = G1.node[n]
+        # G1.nodes[n]['cumulative_area'] = area
+        node = G1.nodes[n]
         node['CA'] = CA
 
         # apply GSI capture data at prescribed nodes
@@ -157,8 +159,8 @@ def accumulate_travel_time(G):
         # create 2d array with the tc of any upstream edge + node pair, and the
         # precedessors' list of tc_path member nodes
         upstream_tc_options = [(G1[p][n]['travel_time'] +
-                                G1.node[p]['tc'],
-                                G1.node[p]['tc_path'])
+                                G1.nodes[p]['tc'],
+                                G1.nodes[p]['tc_path'])
                                for p in G1.predecessors(n)]
 
         if len(upstream_tc_options) > 0:
@@ -168,8 +170,8 @@ def accumulate_travel_time(G):
             path += upstream_tc_options[0][1] + [n]
             # path.append(tc_nodes)
 
-        G1.node[n]['tc'] = tc
-        G1.node[n]['tc_path'] = path
+        G1.nodes[n]['tc'] = tc
+        G1.nodes[n]['tc_path'] = path
 
     return G1
 
@@ -189,8 +191,8 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None,
 
     # find limiting sewers
     for tn in terminal_nodes:
-        G1.node[tn]['limiting_rate'] = 9999
-        G1.node[tn]['limiting_sewer'] = None
+        G1.nodes[tn]['limiting_rate'] = 9999
+        G1.nodes[tn]['limiting_sewer'] = None
 
         for p in G1.predecessors(tn):
             edge = G1[p][tn]
@@ -202,8 +204,8 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None,
                 G1[p][tn]['limiting_rate'] = G1[p][tn][parameter]
 
     for n in list(reversed(list(nx.topological_sort(G1)))):
-        dn_node_rates = [(G1.node[s]['limiting_rate'],
-                          G1.node[s]['limiting_sewer']) for s in G1.successors(n)]
+        dn_node_rates = [(G1.nodes[s]['limiting_rate'],
+                          G1.nodes[s]['limiting_sewer']) for s in G1.successors(n)]
         dn_edge_rates = [(G1[n][s][parameter],
                           G1[n][s]['facilityid']) for s in G1.successors(n)]
         dn_rates = dn_node_rates + dn_edge_rates
@@ -211,8 +213,8 @@ def analyze_downstream(G, nbunch=None, in_place=False, terminal_nodes=None,
         if len(dn_rates) > 0:
             sorted_rates = sorted(dn_rates)
             rate, fid = sorted_rates[0]
-            G1.node[n]['limiting_rate'] = rate
-            G1.node[n]['limiting_sewer'] = fid
+            G1.nodes[n]['limiting_rate'] = rate
+            G1.nodes[n]['limiting_sewer'] = fid
             for s in G1.successors(n):
                 G1[n][s]['limiting_rate'] = rate
                 G1[n][s]['limiting_sewer'] = fid
@@ -269,7 +271,7 @@ def relative_outfall_contribution(G):
     G1 = G.copy()
     # assign outfall contrib dicts to terminal nodes and edges
     for tn in [n for n, d in G1.out_degree() if d == 0]:
-        G1.node[tn]['outfall_contrib'] = {tn: 1.0}
+        G1.nodes[tn]['outfall_contrib'] = {tn: 1.0}
         for p in G1.predecessors(tn):
             G1[p][tn]['outfall_contrib'] = {tn: 1.0}
 
@@ -277,15 +279,15 @@ def relative_outfall_contribution(G):
     for j in nx.topological_sort(G1inv):
 
         # retrieve outfall contrib dict for j, or an empty dict
-        of_contrib_j = G1inv.node[j].get('outfall_contrib', {})
-        G1inv.node[j]['outfall_contrib'] = of_contrib_j
+        of_contrib_j = G1inv.nodes[j].get('outfall_contrib', {})
+        G1inv.nodes[j]['outfall_contrib'] = of_contrib_j
         for s in G1inv.predecessors(j):
 
             # retrieve outfall contrib dict for edge sj, or an empty dict
             of_contrib_sj = G1inv[s][j].get('outfall_contrib', {})
             G1inv[s][j]['outfall_contrib'] = of_contrib_j
 
-            S = G1inv.node[s]
+            S = G1inv.nodes[s]
             # print (s, S)
             for OF, w_SOF in list(S['outfall_contrib'].items()):
                 # get weight of node J w.r.t. OF by multiplying the
@@ -295,7 +297,7 @@ def relative_outfall_contribution(G):
                 w_JOF = w_SOF * G1inv[s][j].get('relative_contribution', 1)
                 of_contrib_j.update({OF: w_JOF})
 
-            G1inv.node[j]['outfall_contrib'].update(of_contrib_j)
+            G1inv.nodes[j]['outfall_contrib'].update(of_contrib_j)
             G1inv[s][j]['outfall_contrib'].update(of_contrib_j)
 
     return G1inv.reverse()
@@ -316,8 +318,8 @@ def analyze_flow_splits(G, split_frac_attr='capacity'):
 
         # record which segments are downstream of this node
         dwn_edges = [(splitter, dn) for dn in G1.successors(splitter)]
-        G1.node[splitter]['flow_split'] = splitter
-        G1.node[splitter]['flow_split_edges'] = dwn_edges
+        G1.nodes[splitter]['flow_split'] = splitter
+        G1.nodes[splitter]['flow_split_edges'] = dwn_edges
 
         # tag the flow split sewers
         total_capacity = max(sum([G1[u][v][split_frac_attr] for u, v in dwn_edges]), 1)
@@ -325,7 +327,7 @@ def analyze_flow_splits(G, split_frac_attr='capacity'):
             G1[u][v]['flow_split'] = 'Y'
             if G1.in_degree(u) == 0:
                 G1[u][v]['flow_split'] = 'summet'
-                G1.node[u]['flow_split'] = 'summet'
+                G1.nodes[u]['flow_split'] = 'summet'
             G1[u][v]['flow_split_frac'] = G1[u][v][split_frac_attr] / total_capacity
 
     return G1

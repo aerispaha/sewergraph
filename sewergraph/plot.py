@@ -13,7 +13,7 @@ def plot_profile(G, path):
 
     for u,v,d in G.edges(data=True, nbunch=path):
 
-        node = G.node[u]
+        node = G.nodes[u]
         sewer = G[u][v]
         inverts.append(node['invert'])
         h = max(sewer['diameter'], sewer['height']) / 12.0
