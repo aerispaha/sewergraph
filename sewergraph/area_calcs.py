@@ -16,7 +16,7 @@ def map_area_to_sewers(G, areas, idcol='facilityid'):
     # a = a.join(sewerids)
     # a = a.set_index(['source', 'target'])[['local_area']].T.apply(tuple).to_dict('records')[0]
     s1 = sewerids.set_index(idcol).join(a)
-    local_areas = {(row.source,row.target):row.local_area for id, row in s1.iterrows()}
+    local_areas = {(row.source, row.target): row.local_area for k, row in s1.iterrows()}
     nx.set_edge_attributes(G, local_areas, 'local_area')
 
 
@@ -38,7 +38,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
         ImportError('scipy.spatial, GeoPandas, and shapely are required for drainage_areas_from_sewers')
 
     in_crs = sewersdf.crs
-    working_crs = {'init':'epsg:2272'}
+    working_crs = 'epsg:2272'
     #convert to state plane so we can get lengths in feet
     #include only sewers of the minumum desired length
     sewersdf1 = sewersdf.to_crs(working_crs)
@@ -51,7 +51,7 @@ def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
     #create points spaced at 10 feet of sewer
     pts = [
         (sewer.interpolate(pt).x, sewer.interpolate(pt).y)
-        for sewer in sewer_shapes
+        for sewer in sewer_shapes.geoms
         for pt in np.arange(0, sewer.length, 10.)
     ]
 
