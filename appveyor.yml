@@ -12,7 +12,7 @@ install:
   - conda create -n test-env python=%PYTHON_VERSION% geopandas==0.6.1
   - activate test-env
   - python setup.py develop
-  - pip install -r %APPVEYOR_BUILD_FOLDER%\\requirements.txt -q
+  - python -m pip install -r %APPVEYOR_BUILD_FOLDER%\\requirements.txt -q
 
 build: off
 
