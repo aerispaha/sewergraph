@@ -1,16 +1,16 @@
-import pandas as pd
-import numpy as np
 import os
-import networkx as nx
 from functools import reduce
 
+import pandas as pd
+import numpy as np
+import networkx as nx
+
 import sewergraph as sg
-import sewergraph.save_load
 
 
 def map_area_to_sewers(G, areas, idcol='facilityid'):
     a = areas.set_index(idcol)
-    sewers = sewergraph.save_load.gdf_from_graph(G)
+    sewers = sg.gdf_from_graph(G)
     sewerids = sewers[[idcol, 'source', 'target']]
 
     # a = a.join(sewerids)
