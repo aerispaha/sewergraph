@@ -388,14 +388,16 @@ def find_edge(G, facilityid):
 
 
 def set_flow_direction(G1, out):
-    '''
-    THATS THE ONEEEEEEE BOIIIIII
-    '''
+    """
+    Set the flow direction in a MultiDiGraph.
+
+    Logic summary:
+    For each node in an undirected copy of G,
+    find edges in the simple short paths from n to all outs
+    that don't exist in G, then reverse them
+    """
     H1 = G1.to_undirected()
 
-    # for each node in an undirected copy of G,
-    # find edges in the simple short paths from n to all outs
-    # that don't exist in G, then reverse them
     rev_edges = []
     for n in H1.nodes():
         if nx.has_path(H1, n, out):
