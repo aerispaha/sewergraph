@@ -8,21 +8,21 @@ DATA_DIR = os.path.join(TEST_DIR, 'data')
 
 def test_downstream_accum():
 
-    H = nx.DiGraph()
+    H = nx.MultiDiGraph()
     H.add_edges_from([(5,4), (4,3), (6,3), (3,2), (2,1)])
     H.nodes[5]['local_area'] = 1
     H.nodes[4]['local_area'] = 1.75
     H.nodes[3]['local_area'] = 1
 
-    H[6][3]['local_area'] = 0.25
+    H[6][3][0]['local_area'] = 0.25
 
     H = sg.accumulate_downstream(H)
     assert H.nodes[1]['cumulative_local_area'] == 4.0
 
     #add a flow split
     H.add_edges_from([(1,0), (1, 'A')])
-    H[1][0]['flow_split_frac'] = 0.25
-    H[1]['A']['flow_split_frac'] = 0.75
+    H[1][0][0]['flow_split_frac'] = 0.25
+    H[1]['A'][0]['flow_split_frac'] = 0.75
     H = sg.accumulate_downstream(H, split_attr='flow_split_frac')
 
     assert H.nodes[0]['cumulative_local_area'] == 1.0
@@ -41,7 +41,7 @@ def test_downstream_accum():
 
 
 def test_relative_outfall_contribution():
-    H = nx.DiGraph()
+    H = nx.MultiDiGraph()
     H.add_edges_from([('A','i'), ('B','i'), ('C','j'), ('D','k'),
                       ('i', 'j'), ('j','k'),  ('k','OF2')])
 
@@ -52,8 +52,8 @@ def test_relative_outfall_contribution():
 
     #flow splits
     H.add_edges_from([('j','j1'), ('j1', 'OF1')])
-    H['j']['j1']['flow_split_frac'] = 0.25
-    H['j']['k']['flow_split_frac'] = 0.75
+    H['j']['j1'][0]['flow_split_frac'] = 0.25
+    H['j']['k'][0]['flow_split_frac'] = 0.75
 
     H = sg.accumulate_downstream(H, accum_attr='local_area',
                                  cumu_attr_name='cumulative_area')

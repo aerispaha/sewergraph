@@ -68,14 +68,16 @@ def accumulate_downstream(G, accum_attr='local_area', cumu_attr_name=None,
         # sum with cumulative values in upstream nodes and edges
         for p in G1.predecessors(n):
 
-            # add cumulative attribute val in upstream node, apply flow split fraction
-            attrib_val += G1.nodes[p][cumu_attr_name] * G1[p][n].get(split_attr, 1)
+            for k, v in G1[p][n].items():
 
-            # add area routed directly to upstream edge/sewer
-            attrib_val += G1[p][n].get(accum_attr, 0)
+                # add cumulative attribute val in upstream node, apply flow split fraction
+                attrib_val += G1.nodes[p][cumu_attr_name] * G1[p][n][k].get(split_attr, 1)
 
-            # store cumulative value in upstream edge
-            G1[p][n][cumu_attr_name] = attrib_val
+                # add area routed directly to upstream edge/sewer
+                attrib_val += G1[p][n][k].get(accum_attr, 0)
+
+                # store cumulative value in upstream edge
+                G1[p][n][k][cumu_attr_name] = attrib_val
 
         # store cumulative attribute value in current node
         G1.nodes[n][cumu_attr_name] = attrib_val
@@ -239,7 +241,8 @@ def assign_inflow_ratio(G, inflow_attr='TotalInflowV'):
     # first, write the TotalInflowV to each downstream edge
     for n, inflow in G2.nodes(data=inflow_attr):
         for s in G2.successors(n):
-            G2[n][s][inflow_attr] = inflow
+            for k, v in G2[n][s].items():
+                G2[n][s][k][inflow_attr] = inflow
 
     # iterate through nodes with multiple inflows and assign relative contribution
     # ratio to each upstream edge
@@ -251,10 +254,10 @@ def assign_inflow_ratio(G, inflow_attr='TotalInflowV'):
         total = sum([_f for _f in inflows if _f])
 
         # calculate relative contribution
-        for u, v, inflow in G2.in_edges(j, data=inflow_attr):
-            G2[u][v]['relative_contribution'] = 1  # default
+        for u, v, k, inflow in G2.in_edges(j, data=inflow_attr, keys=True):
+            G2[u][v][k]['relative_contribution'] = 1  # default
             if total != 0:
-                G2[u][v]['relative_contribution'] = float(inflow) / float(total)
+                G2[u][v][k]['relative_contribution'] = float(inflow) / float(total)
 
     return G2
 
@@ -272,7 +275,8 @@ def relative_outfall_contribution(G):
     for tn in [n for n, d in G1.out_degree() if d == 0]:
         G1.nodes[tn]['outfall_contrib'] = {tn: 1.0}
         for p in G1.predecessors(tn):
-            G1[p][tn]['outfall_contrib'] = {tn: 1.0}
+            for k, v in G1[p][tn].items():
+                G1[p][tn][k]['outfall_contrib'] = {tn: 1.0}
 
     G1inv = G1.reverse()
     for j in nx.topological_sort(G1inv):
@@ -284,7 +288,8 @@ def relative_outfall_contribution(G):
 
             # retrieve outfall contrib dict for edge sj, or an empty dict
             of_contrib_sj = G1inv[s][j].get('outfall_contrib', {})
-            G1inv[s][j]['outfall_contrib'] = of_contrib_j
+            for k, v in G1inv[s][j].items():
+                G1inv[s][j][k]['outfall_contrib'] = of_contrib_j
 
             S = G1inv.nodes[s]
             # print (s, S)
@@ -293,11 +298,13 @@ def relative_outfall_contribution(G):
                 # weight of S w.r.t OF by any inflow ratio to a junction
                 # via edge JS. Store this in the outfall contrib dict in
                 # node J and edge JS
-                w_JOF = w_SOF * G1inv[s][j].get('relative_contribution', 1)
-                of_contrib_j.update({OF: w_JOF})
+                for k, v in G1inv[s][j].items():
+                    w_JOF = w_SOF * G1inv[s][j][k].get('relative_contribution', 1)
+                    of_contrib_j.update({OF: w_JOF})
 
             G1inv.nodes[j]['outfall_contrib'].update(of_contrib_j)
-            G1inv[s][j]['outfall_contrib'].update(of_contrib_j)
+            for k, v in G1inv[s][j].items():
+                G1inv[s][j][k]['outfall_contrib'].update(of_contrib_j)
 
     return G1inv.reverse()
 
