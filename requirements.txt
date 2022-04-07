@@ -1,4 +1,4 @@
-geopandas==0.10.2
+geopandas==0.6.1
 networkx==2.6.3
 geojson==2.5.0
 
