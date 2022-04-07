@@ -4,10 +4,13 @@
 # License: MIT, see full license in LICENSE.txt
 # Web: https://github.com/aerispaha/sewergraph
 ################################################################################
+import warnings
 
-
+from geojson import Point, LineString
 import networkx as nx
+import numpy as np
 import pandas as pd
+
 from sewergraph import generate_facility_id
 
 
@@ -143,6 +146,76 @@ def graph_from_shp(pth=r'test_processed_01', idcol='facilityid', crs={'init': 'e
         if idcol not in d:
             d[idcol] = generate_facility_id()
 
+    return G
+
+
+def graph_from_gdfs(links, nodes=None, upstream_node_field=None, downstream_node_field=None,
+                    drop_cycles=False):
+
+    '''
+    Networkx MultiDiGraph representation
+    '''
+
+    if nodes is not None and links.crs != nodes.crs:
+        raise ValueError(f'the coordinate reference system for links and nodes is inconsistent')
+
+    if upstream_node_field is None and downstream_node_field is None:
+        # use the coordinates of nodes and links for topological connections
+        upstream_node_field = 'upxy'
+        downstream_node_field = 'dnxy'
+
+        links['upxy'] = links.geometry.apply(lambda g: str([np.array(g.coords)[0][0].round(8),  np.array(g.coords)[0][1].round(8)]))
+        links['dnxy'] = links.geometry.apply(lambda g: str([np.array(g.coords)[-1][0].round(8), np.array(g.coords)[-1][1].round(8)]))
+
+        nodes.index = nodes.geometry.apply(lambda g: str([np.array(g.coords)[0][0].round(8), np.array(g.coords)[0][1].round(8)]))
+
+    def multidigraph_from_edges(edges, source, target):
+        '''
+        create a MultiDiGraph from a dataframe of edges, using the row index
+        as the key in the MultiDiGraph
+        '''
+        us = edges[source]
+        vs = edges[target]
+        keys = edges.index
+        data = edges.drop([source, target], axis=1)
+        d_dicts = data.to_dict(orient='records')
+
+        G = nx.MultiDiGraph()
+
+        G.add_edges_from(zip(us, vs, keys, d_dicts))
+
+        return G
+
+    # parse swmm model results with swmmio, concat all links into one dataframe
+    links['facilityid'] = links.index
+
+    # create a nx.MultiDiGraph from the combined model links, add node data, set CRS
+    G = multidigraph_from_edges(links, upstream_node_field, target=downstream_node_field)
+
+    if nodes is not None:
+        H = nx.MultiDiGraph()
+        H.add_nodes_from(zip(nodes.index, nodes.to_dict(orient='records')))
+        G.update(H)
+
+    # create geojson geometry objects for each graph element
+    for u, v, k, coords in G.edges(data='coords', keys=True):
+        if coords:
+            G[u][v][k]['geometry'] = LineString(coords)
+    for n, coords in G.nodes(data='coords'):
+        if coords:
+            G.nodes[n]['geometry'] = Point(coords[0])
+
+    if drop_cycles:
+        # remove cycles
+        cycles = list(nx.simple_cycles(G))
+        if len(cycles) > 0:
+            warnings.warn(f'cycles detected and removed: {cycles}')
+            G.remove_edges_from(cycles)
+
+    G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
+    G.graph['crs'] = links.crs
+    for n, d in G.nodes(data=True):
+        d['graph_node'] = n
     return G
 
 

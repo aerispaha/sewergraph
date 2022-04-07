@@ -23,7 +23,7 @@ def open_file(filename):
 def sum_params_in_nodes(G, nodes, parameter):
     """Sum the returned value of each parameter for all nodes
     having the parameter, in network G"""
-    vals = [G.node[n][parameter] for n in nodes if parameter in G.node[n]]
+    vals = [G.nodes[n][parameter] for n in nodes if parameter in G.nodes[n]]
     return sum(vals)
 
 def data_from_adjacent_node(G, n, key='facilityid'):
@@ -45,8 +45,8 @@ def get_node_values(G, nodes, parameters):
     """return a list of values in nodes having the parameter"""
 
     #if the parameter is in the node, return its value
-    upstream_vals = [G.node[n][p] for n in nodes
-                      for p in parameters if p in G.node[n]]
+    upstream_vals = [G.nodes[n][p] for n in nodes
+                      for p in parameters if p in G.nodes[n]]
 
     return upstream_vals
 
@@ -147,6 +147,6 @@ def transform_projection(G, to_crs='epsg:4326'):
 
     for n, geometry in G.nodes(data='geometry'):
         if geometry:
-            G.node[n]['geometry'] = transform(project, geometry)
+            G.nodes[n]['geometry'] = transform(project, geometry)
 
     G.graph['crs'] = to_crs

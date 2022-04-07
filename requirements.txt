@@ -1,5 +1,7 @@
-# Build dependencies
+geopandas==0.6.1
+networkx==2.6.3
+geojson==2.5.0
+
+# dependencies for tests
 pytest
 autopep8
-
-# Run dependencies

@@ -1,7 +1,8 @@
-from itertools import chain
-from sewergraph import helpers
+import logging
+import math
+
 import networkx as nx
-from .hhcalculations import slope_at_velocity, mannings_velocity
+from .hhcalculations import slope_at_velocity
 
 
 def preprocess_data(G):
@@ -121,11 +122,11 @@ def dfs_nodes_attributes_iter(G, source=None, attribute=None, upstream=True,
             parents, child = stack[-1]
             try:
                 parent = next(parents)
-                node = G.node[parent]
+                node = G.nodes[parent]
                 if attribute in node and node[attribute] is not null_val:
                     # by not appending to the search stack, this reach is no
                     # longer traversed
-                    yield (parent, node)
+                    yield parent, node
                 else:
                     # keep searching
                     if upstream:
@@ -211,13 +212,13 @@ def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
             return None, None
 
     # first, check if trusted invs exist in u or v, else find trusted inverts up/dwn
-    if data_key in G.node[u]:
-        up_inv, i = G.node[u][data_key], u
+    if data_key in G.nodes[u]:
+        up_inv, i = G.nodes[u][data_key], u
     else:
         up_inv, i = adjacent_inv(G, u, data_key, upstream=True)
 
-    if data_key in G.node[v]:
-        dn_inv, j = G.node[v][data_key], v
+    if data_key in G.nodes[v]:
+        dn_inv, j = G.nodes[v][data_key], v
     else:
         dn_inv, j = adjacent_inv(G, v, data_key, upstream=False)
 
@@ -244,8 +245,9 @@ def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
 
 def resolve_slope_gaps(G):
     G1 = G.copy()
+    slope_resolved_count = 0
     for u, v, d in G1.edges(data=True):
-        if d['slope'] == 0:
+        if d['slope'] == 0 or math.isnan(d['slope']):
             slope, i, j, l = determine_slope_from_adjacent_inverts(G1, u, v)
 
             if slope < 0:
@@ -254,8 +256,11 @@ def resolve_slope_gaps(G):
                 shape, diameter = d['pipeshape'], d['diameter']
                 slope = slope_at_velocity(2.5, diameter, height, width, shape)
 
-            d['slope_calculated'] = slope * 100.0
+            d['slope'] = slope
             d['slope_source'] = [i, j]
+
+            slope_resolved_count += 1
+    logging.info(f'Resolved {slope_resolved_count} slope values.')
     return G1
 
 
@@ -389,7 +394,7 @@ def assign_inverts(G, data_key='ELEVATIONI'):
             # fill invert values where nodes already have trusted invert vals
             if G1.node[n].get('invert_trusted', 0) != 0:
                 el_0 = G1.node[n]['invert_trusted']
-                G.node[n]['invert'] = el_0
+                G.nodes[n]['invert'] = el_0
             if G1.node[p].get('invert_trusted', 0) != 0:
                 el_2 = G1.node[p]['invert_trusted']
 

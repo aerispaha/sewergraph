@@ -1,5 +1,6 @@
 import math
 
+
 def hhcalcs_on_network(G):
 	"""
 	For each sewer (edge) in the network, G, calculate the velocity of gravity
@@ -15,7 +16,7 @@ def hhcalcs_on_network(G):
 	"""
 	G1 = G.copy()
 
-	for u,v, data in G1.edges(data=True):
+	for u, v, data in G1.edges(data=True):
 
 		#velocity
 		# diameter = max( data['diameter'], data['height'])
@@ -51,6 +52,7 @@ def hhcalcs_on_network(G):
 
 	return G1
 
+
 def slope_at_velocity(velocity, diameter, height=None, width=None, shape="CIR"):
 	Rh = hydraulic_radius(shape, diameter, height, width)
 	n = get_mannings(shape, diameter)
@@ -58,6 +60,7 @@ def slope_at_velocity(velocity, diameter, height=None, width=None, shape="CIR"):
 
 	slope = (velocity / k) ** 2
 	return slope
+
 
 def mannings_velocity(diameter, slope, height=None, width=None, shape="CIR", data=None):
 
@@ -80,7 +83,7 @@ def mannings_capacity(diameter, slope, height=None, width=None, shape="CIR"):
 	n = get_mannings(shape, diameter)
 	k = (1.49 / n) * math.pow(Rh, 0.667) * A
 
-	Q = k * math.pow(slope/100.0, 0.5)
+	Q = k * math.pow(slope, 0.5)
 
 	return Q
 
