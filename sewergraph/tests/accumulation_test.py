@@ -2,6 +2,8 @@ import networkx as nx
 import sewergraph as sg
 import os
 
+import pytest
+
 TEST_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(TEST_DIR, 'data')
 
@@ -65,6 +67,7 @@ def test_relative_outfall_contribution():
     assert(H.nodes['k']['outfall_contrib'] == {'OF2': 1.0})
 
 
+@pytest.mark.skip(reason="graph_from_shp is depreciated and doesn't support MultiDiGraph")
 def test_graph_from_shp():
 
     #read shapefile into DiGraph
