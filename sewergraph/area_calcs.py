@@ -16,7 +16,7 @@ def map_area_to_sewers(G, areas, idcol='facilityid'):
     # a = a.join(sewerids)
     # a = a.set_index(['source', 'target'])[['local_area']].T.apply(tuple).to_dict('records')[0]
     s1 = sewerids.set_index(idcol).join(a)
-    local_areas = {(row.source, row.target): row.local_area for k, row in s1.iterrows()}
+    local_areas = {(row.source, row.target, k): row.local_area for k, row in s1.iterrows()}
     nx.set_edge_attributes(G, local_areas, 'local_area')
 
 
