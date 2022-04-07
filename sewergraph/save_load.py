@@ -8,6 +8,7 @@ import warnings
 
 from geojson import Point, LineString
 import networkx as nx
+import numpy as np
 import pandas as pd
 
 from sewergraph import generate_facility_id
@@ -148,7 +149,7 @@ def graph_from_shp(pth=r'test_processed_01', idcol='facilityid', crs={'init': 'e
     return G
 
 
-def graph_from_gdfs(links, nodes=None, upstream_node_field='InletNode', downstream_node_field='OutletNode',
+def graph_from_gdfs(links, nodes=None, upstream_node_field=None, downstream_node_field=None,
                     drop_cycles=False):
 
     '''
@@ -157,6 +158,16 @@ def graph_from_gdfs(links, nodes=None, upstream_node_field='InletNode', downstre
 
     if nodes is not None and links.crs != nodes.crs:
         raise ValueError(f'the coordinate reference system for links and nodes is inconsistent')
+
+    if upstream_node_field is None and downstream_node_field is None:
+        # use the coordinates of nodes and links for topological connections
+        upstream_node_field = 'upxy'
+        downstream_node_field = 'dnxy'
+
+        links['upxy'] = links.geometry.apply(lambda g: str([np.array(g.coords)[0][0].round(8),  np.array(g.coords)[0][1].round(8)]))
+        links['dnxy'] = links.geometry.apply(lambda g: str([np.array(g.coords)[-1][0].round(8), np.array(g.coords)[-1][1].round(8)]))
+
+        nodes.index = nodes.geometry.apply(lambda g: str([np.array(g.coords)[0][0].round(8), np.array(g.coords)[0][1].round(8)]))
 
     def multidigraph_from_edges(edges, source, target):
         '''
@@ -182,7 +193,9 @@ def graph_from_gdfs(links, nodes=None, upstream_node_field='InletNode', downstre
     G = multidigraph_from_edges(links, upstream_node_field, target=downstream_node_field)
 
     if nodes is not None:
-        G.add_nodes_from(zip(nodes.index, nodes.to_dict(orient='records')))
+        H = nx.MultiDiGraph()
+        H.add_nodes_from(zip(nodes.index, nodes.to_dict(orient='records')))
+        G.update(H)
 
     # create geojson geometry objects for each graph element
     for u, v, k, coords in G.edges(data='coords', keys=True):
@@ -201,6 +214,8 @@ def graph_from_gdfs(links, nodes=None, upstream_node_field='InletNode', downstre
 
     G = nx.convert_node_labels_to_integers(G, label_attribute='coords')
     G.graph['crs'] = links.crs
+    for n, d in G.nodes(data=True):
+        d['graph_node'] = n
     return G
 
 
