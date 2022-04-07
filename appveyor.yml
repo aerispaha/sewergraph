@@ -16,6 +16,9 @@ install:
 
 build: off
 
+cache:
+ - %MINICONDA%\envs\test-env
+
 test_script:
   - pytest %APPVEYOR_BUILD_FOLDER%
 
