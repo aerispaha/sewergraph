@@ -67,16 +67,15 @@ def accumulate_downstream(G, accum_attr='local_area', cumu_attr_name=None,
 
         # sum with cumulative values in upstream nodes and edges
         for p in G1.predecessors(n):
-            for k in G1[p][n]:
 
-                # add cumulative attribute val in upstream node, apply flow split fraction
-                attrib_val += G1.nodes[p][cumu_attr_name] * G1[p][n][k].get(split_attr, 1)
+            # add cumulative attribute val in upstream node, apply flow split fraction
+            attrib_val += G1.nodes[p][cumu_attr_name] * G1[p][n].get(split_attr, 1)
 
-                # add area routed directly to upstream edge/sewer
-                attrib_val += G1[p][n][k].get(accum_attr, 0)
+            # add area routed directly to upstream edge/sewer
+            attrib_val += G1[p][n].get(accum_attr, 0)
 
-                # store cumulative value in upstream edge
-                G1.edges[(p, n, k)][cumu_attr_name] = attrib_val
+            # store cumulative value in upstream edge
+            G1[p][n][cumu_attr_name] = attrib_val
 
         # store cumulative attribute value in current node
         G1.nodes[n][cumu_attr_name] = attrib_val

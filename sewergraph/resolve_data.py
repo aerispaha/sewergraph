@@ -1,7 +1,8 @@
-from itertools import chain
-from sewergraph import helpers
+import logging
+import math
+
 import networkx as nx
-from .hhcalculations import slope_at_velocity, mannings_velocity
+from .hhcalculations import slope_at_velocity
 
 
 def preprocess_data(G):
@@ -244,8 +245,9 @@ def determine_slope_from_adjacent_inverts(G, u, v, data_key='ELEVATIONI'):
 
 def resolve_slope_gaps(G):
     G1 = G.copy()
+    slope_resolved_count = 0
     for u, v, d in G1.edges(data=True):
-        if d['slope'] == 0:
+        if d['slope'] == 0 or math.isnan(d['slope']):
             slope, i, j, l = determine_slope_from_adjacent_inverts(G1, u, v)
 
             if slope < 0:
@@ -254,8 +256,11 @@ def resolve_slope_gaps(G):
                 shape, diameter = d['pipeshape'], d['diameter']
                 slope = slope_at_velocity(2.5, diameter, height, width, shape)
 
-            d['slope_calculated'] = slope * 100.0
+            d['slope'] = slope
             d['slope_source'] = [i, j]
+
+            slope_resolved_count += 1
+    logging.info(f'Resolved {slope_resolved_count} slope values.')
     return G1
 
 

@@ -83,7 +83,7 @@ def mannings_capacity(diameter, slope, height=None, width=None, shape="CIR"):
 	n = get_mannings(shape, diameter)
 	k = (1.49 / n) * math.pow(Rh, 0.667) * A
 
-	Q = k * math.pow(slope/100.0, 0.5)
+	Q = k * math.pow(slope, 0.5)
 
 	return Q
 
