@@ -29,7 +29,7 @@ def preprocess_data(G, node_invert_field='ELEVATIONI') -> nx.MultiDiGraph:
 
     for n, d in G2.nodes(data=True):
         # normalize elevation data
-        if node_invert_field in d and d[node_invert_field] == 0:
+        if node_invert_field in d and (math.isnan(d[node_invert_field]) or d[node_invert_field] == 0):
             del d[node_invert_field]  # = None
 
     return G
