@@ -1,11 +1,52 @@
 """
 HELPER FUNCTIONS FOR TRACING OPERATIONS
 """
-from itertools import tee
-import networkx as nx
-import os, sys, subprocess
-import pandas as pd
+import math
+import os
+import subprocess
+import sys
 import uuid
+from itertools import tee
+
+import networkx as nx
+import numpy as np
+import pandas as pd
+
+
+def map_edge_attributes_to_nodes(G: nx.MultiDiGraph, edge_attribute_us, edge_attribute_ds, node_attribute):
+    """
+    map known attributes in edges to adjacent nodes with null values for a target
+    attribute
+
+    Parameters
+    ----------
+    G : nx.MultiDiGraph
+        Graph with nodes and edges
+    edge_attribute_us : str
+        attribute in edges to be mapped to upstream nodes
+    edge_attribute_ds : str
+        attribute in edges to be mapped to downstream nodes
+    node_attribute : str
+        target attribute in nodes that will be overwritten with
+        edge attributes if the attribute does not exist already in
+        nodes.
+
+    Returns
+    -------
+    nx.MultiDiGraph
+        graph with edge attributes mapped to adjacent nodes
+    """
+    G2 = G.copy()
+    for u, v, k, d in G2.edges(data=True, keys=True):
+        up_inv = G2.nodes[u].get(node_attribute, np.nan)
+        dn_inv = G2.nodes[v].get(node_attribute, np.nan)
+        if d[edge_attribute_us] > 0 and (math.isnan(up_inv) or up_inv == 0):
+            G2.nodes[u][node_attribute] = d[edge_attribute_us]
+        if d[edge_attribute_ds] > 0 and (math.isnan(dn_inv) or dn_inv == 0):
+            G2.nodes[v][node_attribute] = d[edge_attribute_ds]
+
+    return G2
+
 
 def generate_facility_id(length = 8):
     """
