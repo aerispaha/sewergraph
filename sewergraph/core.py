@@ -61,7 +61,6 @@ def accumulate_downstream(G, accum_attr='local_area', cumu_attr_name=None,
         cumu_attr_name = 'cumulative_{}'.format(accum_attr)
 
     for n in nx.topological_sort(G1):
-
         # grab value in current node
         attrib_val = G1.nodes[n].get(accum_attr, 0)
 
@@ -328,13 +327,14 @@ def analyze_flow_splits(G, split_frac_attr='capacity'):
         G1.nodes[splitter]['flow_split_edges'] = dwn_edges
 
         # tag the flow split sewers
-        total_capacity = max(sum([G1[u][v][split_frac_attr] for u, v in dwn_edges]), 1)
+        total_capacity = max(sum([[G1[u][v][k][split_frac_attr] for k, _ in G1[u][v].items()] for u, v in dwn_edges]), 1)
         for u, v in dwn_edges:
-            G1[u][v]['flow_split'] = 'Y'
-            if G1.in_degree(u) == 0:
-                G1[u][v]['flow_split'] = 'summet'
-                G1.nodes[u]['flow_split'] = 'summet'
-            G1[u][v]['flow_split_frac'] = G1[u][v][split_frac_attr] / total_capacity
+            for k, _ in G1[u][v].items():
+                G1[u][v][k]['flow_split'] = 'Y'
+                if G1.in_degree(u) == 0:
+                    G1[u][v][k]['flow_split'] = 'summet'
+                    G1.nodes[u]['flow_split'] = 'summet'
+                G1[u][v][k]['flow_split_frac'] = G1[u][v][k][split_frac_attr] / total_capacity
 
     return G1
 
