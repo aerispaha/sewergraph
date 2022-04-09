@@ -5,13 +5,14 @@ import networkx as nx
 from .hhcalculations import slope_at_velocity
 
 
-def preprocess_data(G):
-    for u, v, d in G.edges(data=True):
+def preprocess_data(G, node_invert_field='ELEVATIONI') -> nx.MultiDiGraph:
+    G2 = G.copy()
+    for u, v, k, d in G2.edges(data=True, keys=True):
         # normalize geometry coding
-        geom = G[u][v]['pipeshape']
-        diam = G[u][v]['diameter']
-        h = G[u][v]['height']
-        w = G[u][v]['width']
+        geom = G2[u][v][k]['pipeshape']
+        diam = G2[u][v][k]['diameter']
+        h = G2[u][v][k]['height']
+        w = G2[u][v][k]['width']
 
         # standardize unknowns
         if geom not in ['BOX', 'CIR', 'EGG'] or sum([_f for _f in [diam, h, w] if _f]
@@ -26,10 +27,12 @@ def preprocess_data(G):
             d['pipeshape'] = infer_from_dimensions(diam, h, w)
             d['inferred_geom'] = 'Y'
 
-    for n, d in G.nodes(data=True):
+    for n, d in G2.nodes(data=True):
         # normalize elevation data
-        if 'ELEVATIONI' in d and d['ELEVATIONI'] == 0:
-            del d['ELEVATIONI']  # = None
+        if node_invert_field in d and d[node_invert_field] == 0:
+            del d[node_invert_field]  # = None
+
+    return G
 
 
 def infer_from_dimensions(diam, h, w):
@@ -271,7 +274,7 @@ def resolve_geom_gaps(G, nbunch=None):
     """
 
     G1 = G.copy()
-    preprocess_data(G1)
+    G1 = preprocess_data(G1)
     G1 = extend_elevation_data(G1)
     for u, v, d in G1.edges(data=True, nbunch=nbunch):
 

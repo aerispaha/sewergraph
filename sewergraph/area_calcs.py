@@ -8,16 +8,18 @@ import networkx as nx
 import sewergraph as sg
 
 
-def map_area_to_sewers(G, areas, idcol='facilityid'):
+def map_area_to_sewers(G, areas, idcol='facilityid', attributes=None):
     a = areas.set_index(idcol)
     sewers = sg.gdf_from_graph(G)
     sewerids = sewers[[idcol, 'source', 'target']]
 
+    attributes = ['local_area'] if attributes is None else attributes
+
     # a = a.join(sewerids)
     # a = a.set_index(['source', 'target'])[['local_area']].T.apply(tuple).to_dict('records')[0]
     s1 = sewerids.set_index(idcol).join(a)
-    local_areas = {(row.source, row.target, k): row.local_area for k, row in s1.iterrows()}
-    nx.set_edge_attributes(G, local_areas, 'local_area')
+    local_areas = {(row.source, row.target, k): row[attributes].to_dict() for k, row in s1.iterrows()}
+    nx.set_edge_attributes(G, local_areas)
 
 
 def drainage_areas_from_sewers(sewersdf, SEWER_ID_COL, study_area=None,
