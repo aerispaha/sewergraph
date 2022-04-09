@@ -1,5 +1,5 @@
 # sewergraph
-*v0.1.3*
+*v0.1.4*
 
 [![Build status](https://ci.appveyor.com/api/projects/status/tjxw4f4vhm79v3fu/branch/master?svg=true)](https://ci.appveyor.com/project/aerispaha/sewergraph/branch/master)
 [![Build Status](https://travis-ci.com/aerispaha/sewergraph.svg?branch=master)](https://travis-ci.com/aerispaha/sewergraph)
